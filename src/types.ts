@@ -1,32 +1,34 @@
 export interface Session {
   id: string;
   code: string;
-  admin_id: string;
-  created_at: string;
+  adminId: string;
+  createdAt: number;
 }
 
+// Participant doc ID is the participant's own Firebase Auth uid.
 export interface Participant {
   id: string;
-  session_id: string;
-  user_id: string;
   name: string;
-  joined_at: string;
+  joinedAt: number;
 }
 
 export interface Round {
   id: string;
-  session_id: string;
   question: string;
   revealed: boolean;
-  created_at: string;
+  createdAt: number;
 }
 
+// Vote and VoteStatus doc IDs are the voting participant's uid.
 export interface Vote {
   id: string;
-  round_id: string;
-  participant_id: string;
   value: number;
-  created_at: string;
+  createdAt: number;
+}
+
+export interface VoteStatus {
+  id: string;
+  votedAt: number;
 }
 
 export const CARD_VALUES = [0.5, 1, 2, 3, 5, 8, 13, 20] as const;

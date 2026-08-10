@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import type { Participant, Round, Session, Vote } from '../types';
 import VoteCards from '../components/VoteCards';
 import ParticipantList from '../components/ParticipantList';
@@ -21,152 +35,141 @@ export default function Room({ userId }: RoomProps) {
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = session?.admin_id === userId;
-  const me = participants.find((p) => p.user_id === userId) ?? null;
-  const myVote = round ? votes.find((v) => v.participant_id === me?.id) ?? null : null;
+  const isAdmin = session?.adminId === userId;
+  const me = participants.find((p) => p.id === userId) ?? null;
+  const myVote = votes.find((v) => v.id === userId) ?? null;
 
-  const refreshVoteStatus = useCallback(async (roundId: string) => {
-    const { data, error: rpcError } = await supabase.rpc('get_vote_status', {
-      p_round_id: roundId,
-    });
-    if (rpcError) {
-      setError(rpcError.message);
-      return;
-    }
-    setVotedIds(new Set((data ?? []).map((row: { participant_id: string }) => row.participant_id)));
-  }, []);
-
-  const refreshVotes = useCallback(async (roundId: string) => {
-    const { data, error: votesError } = await supabase
-      .from('votes')
-      .select()
-      .eq('round_id', roundId);
-    if (votesError) {
-      setError(votesError.message);
-      return;
-    }
-    setVotes(data ?? []);
-  }, []);
-
-  // Load session + participants, then subscribe to realtime changes.
+  // Resolve the session by its join code, then subscribe to participants and the latest round.
   useEffect(() => {
     if (!code) return;
-    let sessionId: string;
+    let unsubParticipants: (() => void) | undefined;
+    let unsubRounds: (() => void) | undefined;
+    let cancelled = false;
 
     async function load() {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('sessions')
-        .select()
-        .eq('code', code!.toUpperCase())
-        .single();
-      if (sessionError || !sessionData) {
-        setError('Session not found.');
+      const snapshot = await getDocs(
+        query(collection(db, 'sessions'), where('code', '==', code!.toUpperCase()), limit(1))
+      );
+      const sessionDoc = snapshot.docs[0];
+      if (!sessionDoc || cancelled) {
+        if (!sessionDoc) setError('Session not found.');
         return;
       }
-      setSession(sessionData);
-      sessionId = sessionData.id;
+      const sessionId = sessionDoc.id;
+      setSession({ id: sessionId, ...(sessionDoc.data() as Omit<Session, 'id'>) });
 
-      const { data: participantsData } = await supabase
-        .from('participants')
-        .select()
-        .eq('session_id', sessionId);
-      setParticipants(participantsData ?? []);
+      unsubParticipants = onSnapshot(
+        collection(db, 'sessions', sessionId, 'participants'),
+        (snap) => {
+          setParticipants(
+            snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Participant, 'id'>) }))
+          );
+        }
+      );
 
-      const { data: roundsData } = await supabase
-        .from('rounds')
-        .select()
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const latestRound = roundsData?.[0] ?? null;
-      setRound(latestRound);
-      if (latestRound) {
-        await refreshVotes(latestRound.id);
-        await refreshVoteStatus(latestRound.id);
-      }
+      unsubRounds = onSnapshot(
+        query(
+          collection(db, 'sessions', sessionId, 'rounds'),
+          orderBy('createdAt', 'desc'),
+          limit(1)
+        ),
+        (snap) => {
+          const latest = snap.docs[0];
+          setRound(
+            latest ? { id: latest.id, ...(latest.data() as Omit<Round, 'id'>) } : null
+          );
+        }
+      );
     }
 
     load();
+    return () => {
+      cancelled = true;
+      unsubParticipants?.();
+      unsubRounds?.();
+    };
+  }, [code]);
 
-    const channel = supabase
-      .channel(`room-${code}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'participants' },
-        (payload) => {
-          const row = (payload.new ?? payload.old) as Participant;
-          if (row.session_id !== sessionId) return;
-          setParticipants((prev) => {
-            if (payload.eventType === 'DELETE') {
-              return prev.filter((p) => p.id !== row.id);
-            }
-            const next = prev.filter((p) => p.id !== row.id);
-            return [...next, payload.new as Participant];
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rounds' },
-        (payload) => {
-          const row = payload.new as Round;
-          if (!row || row.session_id !== sessionId) return;
-          setRound(row);
-          setVotes([]);
-          refreshVotes(row.id);
-          refreshVoteStatus(row.id);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'votes' },
-        (payload) => {
-          const row = (payload.new ?? payload.old) as Vote;
-          setRound((currentRound) => {
-            if (currentRound && row.round_id === currentRound.id) {
-              refreshVotes(currentRound.id);
-              refreshVoteStatus(currentRound.id);
-            }
-            return currentRound;
-          });
-        }
-      )
-      .subscribe();
+  // Subscribe to votes + vote status for whichever round is currently active.
+  useEffect(() => {
+    if (!session || !round) {
+      setVotes([]);
+      setVotedIds(new Set());
+      return;
+    }
+
+    const votesRef = collection(
+      db,
+      'sessions',
+      session.id,
+      'rounds',
+      round.id,
+      'votes'
+    );
+    const voteStatusRef = collection(
+      db,
+      'sessions',
+      session.id,
+      'rounds',
+      round.id,
+      'voteStatus'
+    );
+
+    const unsubVotes = onSnapshot(votesRef, (snap) => {
+      setVotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Vote, 'id'>) })));
+    });
+    const unsubVoteStatus = onSnapshot(voteStatusRef, (snap) => {
+      setVotedIds(new Set(snap.docs.map((d) => d.id)));
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubVotes();
+      unsubVoteStatus();
     };
-  }, [code, refreshVotes, refreshVoteStatus]);
+  }, [session, round?.id]);
 
   async function handleAskQuestion(e: FormEvent) {
     e.preventDefault();
     if (!session || !question.trim()) return;
-    const { error: insertError } = await supabase.from('rounds').insert({
-      session_id: session.id,
-      question: question.trim(),
-    });
-    if (insertError) setError(insertError.message);
-    setQuestion('');
+    try {
+      await addDoc(collection(db, 'sessions', session.id, 'rounds'), {
+        question: question.trim(),
+        revealed: false,
+        createdAt: serverTimestamp(),
+      });
+      setQuestion('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start round.');
+    }
   }
 
   async function handleVote(value: number) {
-    if (!round || !me) return;
-    const { error: voteError } = await supabase
-      .from('votes')
-      .upsert(
-        { round_id: round.id, participant_id: me.id, value },
-        { onConflict: 'round_id,participant_id' }
-      );
-    if (voteError) setError(voteError.message);
+    if (!session || !round || !me) return;
+    try {
+      await Promise.all([
+        setDoc(
+          doc(db, 'sessions', session.id, 'rounds', round.id, 'votes', userId),
+          { value, createdAt: serverTimestamp() }
+        ),
+        setDoc(
+          doc(db, 'sessions', session.id, 'rounds', round.id, 'voteStatus', userId),
+          { votedAt: serverTimestamp() }
+        ),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not submit vote.');
+    }
   }
 
   async function handleReveal() {
-    if (!round) return;
-    const { error: revealError } = await supabase
-      .from('rounds')
-      .update({ revealed: true })
-      .eq('id', round.id);
-    if (revealError) setError(revealError.message);
+    if (!session || !round) return;
+    try {
+      await updateDoc(doc(db, 'sessions', session.id, 'rounds', round.id), {
+        revealed: true,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not reveal votes.');
+    }
   }
 
   if (error) return <div className="room-error">{error}</div>;
@@ -186,7 +189,7 @@ export default function Room({ userId }: RoomProps) {
             participants={participants}
             votedIds={votedIds}
             revealed={round?.revealed ?? false}
-            adminId={session.admin_id}
+            adminId={session.adminId}
           />
         </aside>
 

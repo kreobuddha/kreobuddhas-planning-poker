@@ -18,7 +18,7 @@ export default function Results({ votes, participants }: ResultsProps) {
         {votes.map((v) => (
           <div key={v.id} className="result-card">
             <div className="result-value">{v.value}</div>
-            <div className="result-name">{nameFor(v.participant_id)}</div>
+            <div className="result-name">{nameFor(v.id)}</div>
           </div>
         ))}
       </div>

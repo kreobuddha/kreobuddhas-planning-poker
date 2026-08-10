@@ -19,7 +19,7 @@ export default function ParticipantList({
         <li key={p.id}>
           <span className="participant-name">
             {p.name}
-            {p.user_id === adminId && <span className="badge">admin</span>}
+            {p.id === adminId && <span className="badge">admin</span>}
           </span>
           <span className={`vote-status ${votedIds.has(p.id) ? 'voted' : ''}`}>
             {revealed ? '' : votedIds.has(p.id) ? 'voted' : 'waiting'}

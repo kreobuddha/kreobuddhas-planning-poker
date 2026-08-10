@@ -1,7 +1,18 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { generateSessionCode } from '../lib/code';
 
 interface HomeProps {
@@ -16,13 +27,10 @@ export default function Home({ userId }: HomeProps) {
   const [busy, setBusy] = useState(false);
 
   async function ensureParticipant(sessionId: string, displayName: string) {
-    const { error: participantError } = await supabase
-      .from('participants')
-      .upsert(
-        { session_id: sessionId, user_id: userId, name: displayName },
-        { onConflict: 'session_id,user_id' }
-      );
-    if (participantError) throw participantError;
+    await setDoc(doc(db, 'sessions', sessionId, 'participants', userId), {
+      name: displayName,
+      joinedAt: serverTimestamp(),
+    });
   }
 
   async function handleCreate(e: FormEvent) {
@@ -35,15 +43,14 @@ export default function Home({ userId }: HomeProps) {
     setError(null);
     try {
       const code = generateSessionCode();
-      const { data, error: sessionError } = await supabase
-        .from('sessions')
-        .insert({ code, admin_id: userId })
-        .select()
-        .single();
-      if (sessionError) throw sessionError;
+      const sessionRef = await addDoc(collection(db, 'sessions'), {
+        code,
+        adminId: userId,
+        createdAt: serverTimestamp(),
+      });
 
-      await ensureParticipant(data.id, name.trim());
-      navigate(`/room/${code}`, { state: { name: name.trim() } });
+      await ensureParticipant(sessionRef.id, name.trim());
+      navigate(`/room/${code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create session.');
     } finally {
@@ -61,15 +68,14 @@ export default function Home({ userId }: HomeProps) {
     setError(null);
     try {
       const code = joinCode.trim().toUpperCase();
-      const { data, error: sessionError } = await supabase
-        .from('sessions')
-        .select()
-        .eq('code', code)
-        .single();
-      if (sessionError || !data) throw new Error('No session found with that code.');
+      const snapshot = await getDocs(
+        query(collection(db, 'sessions'), where('code', '==', code), limit(1))
+      );
+      const sessionDoc = snapshot.docs[0];
+      if (!sessionDoc) throw new Error('No session found with that code.');
 
-      await ensureParticipant(data.id, name.trim());
-      navigate(`/room/${code}`, { state: { name: name.trim() } });
+      await ensureParticipant(sessionDoc.id, name.trim());
+      navigate(`/room/${code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not join session.');
     } finally {
