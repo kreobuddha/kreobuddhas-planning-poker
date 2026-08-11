@@ -8,21 +8,22 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 - React + TypeScript + Vite
 - Firebase (Firestore + Anonymous Auth) for data and realtime sync — see
   `firebase/firestore.rules` for the security model
-- `src/components/` — shared UI (VoteCards, ParticipantList, Results)
+- `src/components/` — shared UI, one folder per component (VoteCards, ParticipantList, Results)
 - `src/hooks/` — `useAuth` (anonymous sign-in)
 - `src/lib/` — Firebase client init, session code generator
-- `src/pages/` — Home (create/join), Room (voting + reveal)
+- `src/pages/` — Home (create/join), Room (voting + reveal), one folder per page
 
 ## Conventions
 
-- Functional components only.
+See [docs/code-rules.md](docs/code-rules.md) for the full personal style rules (arrow
+functions, one folder per component/page with a colocated `.scss` file, `@/` import alias
+instead of relative paths). Beyond those:
+
 - `import type { X } from '...'` for type-only imports — `verbatimModuleSyntax` is on in
   `tsconfig`, so a plain `import { X }` for a type builds fine under `tsc --noEmit` but fails
   the actual `vite build`. Always use `npm run build`, not just `tsc --noEmit`, to catch this.
 - No comments unless they explain a non-obvious "why" (a workaround, a hidden constraint).
   Well-named identifiers should carry the "what".
-- Keep components small and colocated under `src/components/` only if shared across pages;
-  page-specific UI stays inline in the page file.
 - Don't add abstractions, config flags, or error handling for cases that can't happen here —
   this is a small portfolio app, not a multi-tenant product.
 
