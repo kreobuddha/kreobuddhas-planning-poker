@@ -1,9 +1,10 @@
+import type { ReactElement } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Home from '@/pages/Home/Home';
 import Room from '@/pages/Room/Room';
 
-const App = () => {
+const App = (): ReactElement => {
   const { userId, loading, error } = useAuth();
 
   if (error) {

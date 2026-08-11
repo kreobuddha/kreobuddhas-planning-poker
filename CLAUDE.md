@@ -11,6 +11,8 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 - `src/components/` — shared UI, one folder per component (VoteCards, ParticipantList, Results)
 - `src/hooks/` — `useAuth` (anonymous sign-in)
 - `src/lib/` — Firebase client init, session code generator
+- `src/config.ts` — app-wide constants (e.g. `CARD_VALUES`)
+- `src/types.ts` — domain interfaces (`ISession`, `IParticipant`, `IRound`, `IVote`)
 - `src/pages/` — Home (create/join), Room (voting + reveal), one folder per page
 
 ## Conventions
@@ -26,6 +28,10 @@ instead of relative paths). Beyond those:
   Well-named identifiers should carry the "what".
 - Don't add abstractions, config flags, or error handling for cases that can't happen here —
   this is a small portfolio app, not a multi-tenant product.
+- No test suite and no error boundaries — a deliberate choice, not an oversight. Verification
+  leans on `npm run build`, `npm run lint`, and manual browser smoke testing instead. Don't add
+  tests or error boundaries unasked; if that tradeoff ever needs revisiting, that's a decision
+  for the user to make, not something to introduce quietly.
 
 ## Firebase conventions
 

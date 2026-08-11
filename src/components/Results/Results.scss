@@ -1,11 +1,11 @@
-.results-grid {
+.results__grid {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
-.result-card {
+.results__card {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -14,19 +14,19 @@
   min-width: 72px;
 }
 
-.result-value {
+.results__value {
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--accent);
 }
 
-.result-name {
+.results__name {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
-.average {
+.results__average {
   color: var(--text-muted);
 
   strong {

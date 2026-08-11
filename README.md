@@ -47,7 +47,7 @@ and vote on how long a task will take — in person-days — together.
 - Sessions are looked up by a short join code; the creator becomes the session admin.
 - Votes are hidden from other participants until the admin reveals the round — enforced by
   Firestore security rules ([`firebase/firestore.rules`](firebase/firestore.rules)), not just
-  the UI. A parallel `voteStatus` doc (no value, just a timestamp) lets everyone see *who* has
+  the UI. A parallel `voteStatus` doc (no value, just a timestamp) lets everyone see _who_ has
   voted without exposing values early.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
   `onSnapshot` listeners on the `participants`, `rounds`, `votes`, and `voteStatus` collections.

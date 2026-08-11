@@ -1,5 +1,6 @@
+import './Room.scss';
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   addDoc,
@@ -16,23 +17,22 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Participant, Round, Session, Vote } from '@/types';
+import type { IParticipant, IRound, ISession, IVote } from '@/types';
 import VoteCards from '@/components/VoteCards/VoteCards';
 import ParticipantList from '@/components/ParticipantList/ParticipantList';
 import Results from '@/components/Results/Results';
-import './Room.scss';
 
 interface RoomProps {
   userId: string;
 }
 
-const Room = ({ userId }: RoomProps) => {
+const Room = ({ userId }: RoomProps): ReactElement => {
   const { code } = useParams<{ code: string }>();
-  const [session, setSession] = useState<Session | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [round, setRound] = useState<Round | null>(null);
-  const [votes, setVotes] = useState<Vote[]>([]);
-  const [myVote, setMyVote] = useState<Vote | null>(null);
+  const [session, setSession] = useState<ISession | null>(null);
+  const [participants, setParticipants] = useState<IParticipant[]>([]);
+  const [round, setRound] = useState<IRound | null>(null);
+  const [votes, setVotes] = useState<IVote[]>([]);
+  const [myVote, setMyVote] = useState<IVote | null>(null);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ const Room = ({ userId }: RoomProps) => {
     let unsubRounds: (() => void) | undefined;
     let cancelled = false;
 
-    const load = async () => {
+    const load = async (): Promise<void> => {
       const snapshot = await getDocs(
         query(collection(db, 'sessions'), where('code', '==', code!.toUpperCase()), limit(1))
       );
@@ -57,13 +57,13 @@ const Room = ({ userId }: RoomProps) => {
         return;
       }
       const sessionId = sessionDoc.id;
-      setSession({ id: sessionId, ...(sessionDoc.data() as Omit<Session, 'id'>) });
+      setSession({ id: sessionId, ...(sessionDoc.data() as Omit<ISession, 'id'>) });
 
       unsubParticipants = onSnapshot(
         collection(db, 'sessions', sessionId, 'participants'),
         (snap) => {
           setParticipants(
-            snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Participant, 'id'>) }))
+            snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<IParticipant, 'id'>) }))
           );
         }
       );
@@ -76,9 +76,7 @@ const Room = ({ userId }: RoomProps) => {
         ),
         (snap) => {
           const latest = snap.docs[0];
-          setRound(
-            latest ? { id: latest.id, ...(latest.data() as Omit<Round, 'id'>) } : null
-          );
+          setRound(latest ? { id: latest.id, ...(latest.data() as Omit<IRound, 'id'>) } : null);
         }
       );
     };
@@ -100,17 +98,10 @@ const Room = ({ userId }: RoomProps) => {
     }
 
     const myVoteRef = doc(db, 'sessions', session.id, 'rounds', round.id, 'votes', userId);
-    const voteStatusRef = collection(
-      db,
-      'sessions',
-      session.id,
-      'rounds',
-      round.id,
-      'voteStatus'
-    );
+    const voteStatusRef = collection(db, 'sessions', session.id, 'rounds', round.id, 'voteStatus');
 
     const unsubMyVote = onSnapshot(myVoteRef, (snap) => {
-      setMyVote(snap.exists() ? { id: snap.id, ...(snap.data() as Omit<Vote, 'id'>) } : null);
+      setMyVote(snap.exists() ? { id: snap.id, ...(snap.data() as Omit<IVote, 'id'>) } : null);
     });
     const unsubVoteStatus = onSnapshot(voteStatusRef, (snap) => {
       setVotedIds(new Set(snap.docs.map((d) => d.id)));
@@ -133,13 +124,13 @@ const Room = ({ userId }: RoomProps) => {
 
     const votesRef = collection(db, 'sessions', session.id, 'rounds', round.id, 'votes');
     const unsubVotes = onSnapshot(votesRef, (snap) => {
-      setVotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Vote, 'id'>) })));
+      setVotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<IVote, 'id'>) })));
     });
 
     return () => unsubVotes();
   }, [session, round?.id, round?.revealed]);
 
-  const handleAskQuestion = async (e: FormEvent) => {
+  const handleAskQuestion = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     if (!session || !question.trim()) return;
     try {
@@ -154,25 +145,24 @@ const Room = ({ userId }: RoomProps) => {
     }
   };
 
-  const handleVote = async (value: number) => {
+  const handleVote = async (value: number): Promise<void> => {
     if (!session || !round || !me) return;
     try {
       await Promise.all([
-        setDoc(
-          doc(db, 'sessions', session.id, 'rounds', round.id, 'votes', userId),
-          { value, createdAt: serverTimestamp() }
-        ),
-        setDoc(
-          doc(db, 'sessions', session.id, 'rounds', round.id, 'voteStatus', userId),
-          { votedAt: serverTimestamp() }
-        ),
+        setDoc(doc(db, 'sessions', session.id, 'rounds', round.id, 'votes', userId), {
+          value,
+          createdAt: serverTimestamp(),
+        }),
+        setDoc(doc(db, 'sessions', session.id, 'rounds', round.id, 'voteStatus', userId), {
+          votedAt: serverTimestamp(),
+        }),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit vote.');
     }
   };
 
-  const handleReveal = async () => {
+  const handleReveal = async (): Promise<void> => {
     if (!session || !round) return;
     try {
       await updateDoc(doc(db, 'sessions', session.id, 'rounds', round.id), {
@@ -183,18 +173,18 @@ const Room = ({ userId }: RoomProps) => {
     }
   };
 
-  if (error) return <div className="room-error">{error}</div>;
-  if (!session) return <div className="room-loading">Loading session…</div>;
+  if (error) return <div className="room__error">{error}</div>;
+  if (!session) return <div className="room__loading">Loading session…</div>;
 
   return (
     <div className="room">
-      <header className="room-header">
+      <header className="room__header">
         <h1>Session {session.code}</h1>
         <p>Share this code with your team to let them join.</p>
       </header>
 
-      <div className="room-body">
-        <aside className="room-sidebar">
+      <div className="room__body">
+        <aside className="room__sidebar">
           <h2>Participants</h2>
           <ParticipantList
             participants={participants}
@@ -204,9 +194,9 @@ const Room = ({ userId }: RoomProps) => {
           />
         </aside>
 
-        <main className="room-main">
+        <main className="room__main">
           {isAdmin && (!round || round.revealed) && (
-            <form onSubmit={handleAskQuestion} className="ask-form">
+            <form onSubmit={handleAskQuestion} className="room__ask-form">
               <h2>Ask a question</h2>
               <input
                 placeholder="What are we estimating?"
@@ -219,13 +209,17 @@ const Room = ({ userId }: RoomProps) => {
 
           {round && (
             <div className="round">
-              <h2 className="question">{round.question}</h2>
+              <h2 className="room__question">{round.question}</h2>
 
               {!round.revealed && (
                 <>
-                  <VoteCards selected={myVote?.value ?? null} disabled={false} onSelect={handleVote} />
+                  <VoteCards
+                    selected={myVote?.value ?? null}
+                    disabled={false}
+                    onSelect={handleVote}
+                  />
                   {isAdmin && (
-                    <button className="reveal-btn" onClick={handleReveal}>
+                    <button className="room__reveal-btn" onClick={handleReveal}>
                       Reveal cards
                     </button>
                   )}

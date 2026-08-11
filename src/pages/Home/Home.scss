@@ -5,19 +5,19 @@
   text-align: center;
 }
 
-.subtitle {
+.home__subtitle {
   color: var(--text-muted);
   margin-bottom: 2rem;
 }
 
-.name-input {
+.home__name-input {
   width: 100%;
   max-width: 320px;
   margin-bottom: 2rem;
   text-align: center;
 }
 
-.home-actions {
+.home__actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
@@ -28,7 +28,7 @@
   }
 }
 
-.home-card {
+.home__card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -44,7 +44,7 @@
   }
 }
 
-.error {
+.home__error {
   color: #ff6b6b;
   margin-top: 1.5rem;
 }

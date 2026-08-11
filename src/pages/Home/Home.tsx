@@ -1,5 +1,6 @@
+import './Home.scss';
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   addDoc,
@@ -14,27 +15,26 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { generateSessionCode } from '@/lib/code';
-import './Home.scss';
 
 interface HomeProps {
   userId: string;
 }
 
-const Home = ({ userId }: HomeProps) => {
+const Home = ({ userId }: HomeProps): ReactElement => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const ensureParticipant = async (sessionId: string, displayName: string) => {
+  const ensureParticipant = async (sessionId: string, displayName: string): Promise<void> => {
     await setDoc(doc(db, 'sessions', sessionId, 'participants', userId), {
       name: displayName,
       joinedAt: serverTimestamp(),
     });
   };
 
-  const handleCreate = async (e: FormEvent) => {
+  const handleCreate = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Enter your name first.');
@@ -59,7 +59,7 @@ const Home = ({ userId }: HomeProps) => {
     }
   };
 
-  const handleJoin = async (e: FormEvent) => {
+  const handleJoin = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     if (!name.trim() || !joinCode.trim()) {
       setError('Enter your name and a session code.');
@@ -87,17 +87,17 @@ const Home = ({ userId }: HomeProps) => {
   return (
     <div className="home">
       <h1>Planning Poker</h1>
-      <p className="subtitle">Estimate together, in person-days.</p>
+      <p className="home__subtitle">Estimate together, in person-days.</p>
 
       <input
-        className="name-input"
+        className="home__name-input"
         placeholder="Your name"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
 
-      <div className="home-actions">
-        <form onSubmit={handleCreate} className="home-card">
+      <div className="home__actions">
+        <form onSubmit={handleCreate} className="home__card">
           <h2>Start a session</h2>
           <p>Create a new room and share the code with your team.</p>
           <button type="submit" disabled={busy}>
@@ -105,7 +105,7 @@ const Home = ({ userId }: HomeProps) => {
           </button>
         </form>
 
-        <form onSubmit={handleJoin} className="home-card">
+        <form onSubmit={handleJoin} className="home__card">
           <h2>Join a session</h2>
           <input
             placeholder="Session code"
@@ -118,7 +118,7 @@ const Home = ({ userId }: HomeProps) => {
         </form>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="home__error">{error}</p>}
     </div>
   );
 };
