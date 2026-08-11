@@ -15,17 +15,18 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import type { Participant, Round, Session, Vote } from '../types';
-import VoteCards from '../components/VoteCards';
-import ParticipantList from '../components/ParticipantList';
-import Results from '../components/Results';
+import { db } from '@/lib/firebase';
+import type { Participant, Round, Session, Vote } from '@/types';
+import VoteCards from '@/components/VoteCards/VoteCards';
+import ParticipantList from '@/components/ParticipantList/ParticipantList';
+import Results from '@/components/Results/Results';
+import './Room.scss';
 
 interface RoomProps {
   userId: string;
 }
 
-export default function Room({ userId }: RoomProps) {
+const Room = ({ userId }: RoomProps) => {
   const { code } = useParams<{ code: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -46,7 +47,7 @@ export default function Room({ userId }: RoomProps) {
     let unsubRounds: (() => void) | undefined;
     let cancelled = false;
 
-    async function load() {
+    const load = async () => {
       const snapshot = await getDocs(
         query(collection(db, 'sessions'), where('code', '==', code!.toUpperCase()), limit(1))
       );
@@ -80,7 +81,7 @@ export default function Room({ userId }: RoomProps) {
           );
         }
       );
-    }
+    };
 
     load();
     return () => {
@@ -138,7 +139,7 @@ export default function Room({ userId }: RoomProps) {
     return () => unsubVotes();
   }, [session, round?.id, round?.revealed]);
 
-  async function handleAskQuestion(e: FormEvent) {
+  const handleAskQuestion = async (e: FormEvent) => {
     e.preventDefault();
     if (!session || !question.trim()) return;
     try {
@@ -151,9 +152,9 @@ export default function Room({ userId }: RoomProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start round.');
     }
-  }
+  };
 
-  async function handleVote(value: number) {
+  const handleVote = async (value: number) => {
     if (!session || !round || !me) return;
     try {
       await Promise.all([
@@ -169,9 +170,9 @@ export default function Room({ userId }: RoomProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit vote.');
     }
-  }
+  };
 
-  async function handleReveal() {
+  const handleReveal = async () => {
     if (!session || !round) return;
     try {
       await updateDoc(doc(db, 'sessions', session.id, 'rounds', round.id), {
@@ -180,7 +181,7 @@ export default function Room({ userId }: RoomProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not reveal votes.');
     }
-  }
+  };
 
   if (error) return <div className="room-error">{error}</div>;
   if (!session) return <div className="room-loading">Loading session…</div>;
@@ -240,4 +241,6 @@ export default function Room({ userId }: RoomProps) {
       </div>
     </div>
   );
-}
+};
+
+export default Room;

@@ -1,10 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
-import Home from './pages/Home';
-import Room from './pages/Room';
-import './App.css';
+import { useAuth } from '@/hooks/useAuth';
+import Home from '@/pages/Home/Home';
+import Room from '@/pages/Room/Room';
 
-function App() {
+const App = () => {
   const { userId, loading, error } = useAuth();
 
   if (error) {
@@ -23,6 +22,6 @@ function App() {
       </Routes>
     </BrowserRouter>
   );
-}
+};
 
 export default App;

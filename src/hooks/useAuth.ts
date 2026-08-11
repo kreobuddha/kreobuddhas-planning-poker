@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth } from '@/lib/firebase';
 
-export function useAuth() {
+export const useAuth = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,4 +24,4 @@ export function useAuth() {
   }, []);
 
   return { userId, loading, error };
-}
+};

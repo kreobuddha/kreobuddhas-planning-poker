@@ -1,11 +1,12 @@
-import type { Participant, Vote } from '../types';
+import type { Participant, Vote } from '@/types';
+import './Results.scss';
 
 interface ResultsProps {
   votes: Vote[];
   participants: Participant[];
 }
 
-export default function Results({ votes, participants }: ResultsProps) {
+const Results = ({ votes, participants }: ResultsProps) => {
   const nameFor = (participantId: string) =>
     participants.find((p) => p.id === participantId)?.name ?? 'Unknown';
 
@@ -29,4 +30,6 @@ export default function Results({ votes, participants }: ResultsProps) {
       )}
     </div>
   );
-}
+};
+
+export default Results;

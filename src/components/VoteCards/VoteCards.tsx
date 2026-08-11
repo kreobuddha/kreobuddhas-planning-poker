@@ -1,4 +1,5 @@
-import { CARD_VALUES } from '../types';
+import { CARD_VALUES } from '@/types';
+import './VoteCards.scss';
 
 interface VoteCardsProps {
   selected: number | null;
@@ -6,7 +7,7 @@ interface VoteCardsProps {
   onSelect: (value: number) => void;
 }
 
-export default function VoteCards({ selected, disabled, onSelect }: VoteCardsProps) {
+const VoteCards = ({ selected, disabled, onSelect }: VoteCardsProps) => {
   return (
     <div className="vote-cards">
       {CARD_VALUES.map((value) => (
@@ -21,4 +22,6 @@ export default function VoteCards({ selected, disabled, onSelect }: VoteCardsPro
       ))}
     </div>
   );
-}
+};
+
+export default VoteCards;

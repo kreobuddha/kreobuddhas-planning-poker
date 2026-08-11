@@ -1,4 +1,5 @@
-import type { Participant } from '../types';
+import type { Participant } from '@/types';
+import './ParticipantList.scss';
 
 interface ParticipantListProps {
   participants: Participant[];
@@ -7,12 +8,12 @@ interface ParticipantListProps {
   adminId: string;
 }
 
-export default function ParticipantList({
+const ParticipantList = ({
   participants,
   votedIds,
   revealed,
   adminId,
-}: ParticipantListProps) {
+}: ParticipantListProps) => {
   return (
     <ul className="participant-list">
       {participants.map((p) => (
@@ -28,4 +29,6 @@ export default function ParticipantList({
       ))}
     </ul>
   );
-}
+};
+
+export default ParticipantList;

@@ -12,28 +12,29 @@ import {
   setDoc,
   where,
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { generateSessionCode } from '../lib/code';
+import { db } from '@/lib/firebase';
+import { generateSessionCode } from '@/lib/code';
+import './Home.scss';
 
 interface HomeProps {
   userId: string;
 }
 
-export default function Home({ userId }: HomeProps) {
+const Home = ({ userId }: HomeProps) => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function ensureParticipant(sessionId: string, displayName: string) {
+  const ensureParticipant = async (sessionId: string, displayName: string) => {
     await setDoc(doc(db, 'sessions', sessionId, 'participants', userId), {
       name: displayName,
       joinedAt: serverTimestamp(),
     });
-  }
+  };
 
-  async function handleCreate(e: FormEvent) {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setError('Enter your name first.');
@@ -56,9 +57,9 @@ export default function Home({ userId }: HomeProps) {
     } finally {
       setBusy(false);
     }
-  }
+  };
 
-  async function handleJoin(e: FormEvent) {
+  const handleJoin = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !joinCode.trim()) {
       setError('Enter your name and a session code.');
@@ -81,7 +82,7 @@ export default function Home({ userId }: HomeProps) {
     } finally {
       setBusy(false);
     }
-  }
+  };
 
   return (
     <div className="home">
@@ -120,4 +121,6 @@ export default function Home({ userId }: HomeProps) {
       {error && <p className="error">{error}</p>}
     </div>
   );
-}
+};
+
+export default Home;
