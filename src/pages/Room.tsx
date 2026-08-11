@@ -31,13 +31,13 @@ export default function Room({ userId }: RoomProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [round, setRound] = useState<Round | null>(null);
   const [votes, setVotes] = useState<Vote[]>([]);
+  const [myVote, setMyVote] = useState<Vote | null>(null);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
-  const myVote = votes.find((v) => v.id === userId) ?? null;
 
   // Resolve the session by its join code, then subscribe to participants and the latest round.
   useEffect(() => {
@@ -90,22 +90,15 @@ export default function Room({ userId }: RoomProps) {
     };
   }, [code]);
 
-  // Subscribe to votes + vote status for whichever round is currently active.
+  // My own vote and the vote-status board are always readable pre-reveal.
   useEffect(() => {
     if (!session || !round) {
-      setVotes([]);
+      setMyVote(null);
       setVotedIds(new Set());
       return;
     }
 
-    const votesRef = collection(
-      db,
-      'sessions',
-      session.id,
-      'rounds',
-      round.id,
-      'votes'
-    );
+    const myVoteRef = doc(db, 'sessions', session.id, 'rounds', round.id, 'votes', userId);
     const voteStatusRef = collection(
       db,
       'sessions',
@@ -115,18 +108,35 @@ export default function Room({ userId }: RoomProps) {
       'voteStatus'
     );
 
-    const unsubVotes = onSnapshot(votesRef, (snap) => {
-      setVotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Vote, 'id'>) })));
+    const unsubMyVote = onSnapshot(myVoteRef, (snap) => {
+      setMyVote(snap.exists() ? { id: snap.id, ...(snap.data() as Omit<Vote, 'id'>) } : null);
     });
     const unsubVoteStatus = onSnapshot(voteStatusRef, (snap) => {
       setVotedIds(new Set(snap.docs.map((d) => d.id)));
     });
 
     return () => {
-      unsubVotes();
+      unsubMyVote();
       unsubVoteStatus();
     };
-  }, [session, round?.id]);
+  }, [session, round?.id, userId]);
+
+  // The full votes list is only readable once the round is revealed (Firestore security
+  // rules can't filter a collection list down to "just my document" the way a single-doc
+  // get can, so listing everyone's votes has to wait until the reveal makes them all public).
+  useEffect(() => {
+    if (!session || !round || !round.revealed) {
+      setVotes([]);
+      return;
+    }
+
+    const votesRef = collection(db, 'sessions', session.id, 'rounds', round.id, 'votes');
+    const unsubVotes = onSnapshot(votesRef, (snap) => {
+      setVotes(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Vote, 'id'>) })));
+    });
+
+    return () => unsubVotes();
+  }, [session, round?.id, round?.revealed]);
 
   async function handleAskQuestion(e: FormEvent) {
     e.preventDefault();
