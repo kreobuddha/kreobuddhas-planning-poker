@@ -8,12 +8,37 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 - React + TypeScript + Vite
 - Firebase (Firestore + Anonymous Auth) for data and realtime sync — see
   `firebase/firestore.rules` for the security model
+- Redux Toolkit + RTK Query for the endpoints layer (see "Endpoints layer" below) — deliberately
+  added despite the no-abstractions rule further down; don't strip it back out
 - `src/components/` — shared UI, one folder per component (VoteCards, ParticipantList, Results)
-- `src/hooks/` — `useAuth` (anonymous sign-in)
+- `src/store/` — `configureStore` (`index.ts`), `rootReducer.ts`, and the shared empty RTK Query
+  API instance (`emptyApi.ts`, `fakeBaseQuery()` — see below)
+- `src/auth/` — `userSlice` (uid/loading/error), `useCheckAuth` (anonymous sign-in bootstrap),
+  `store/authApi.ts` (the `signInAnonymously` endpoint)
 - `src/lib/` — Firebase client init, session code generator
 - `src/config.ts` — app-wide constants (e.g. `CARD_VALUES`)
 - `src/types.ts` — domain interfaces (`ISession`, `IParticipant`, `IRound`, `IVote`)
-- `src/pages/` — Home (create/join), Room (voting + reveal), one folder per page
+- `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section
+- `src/main/endpoints/` — endpoints shared across sections (currently `sessionsApi.ts`,
+  looking a session up by code)
+
+## Endpoints layer
+
+Firebase/Firestore calls are never made directly from components — they're wrapped in RTK
+Query endpoint files, one `endpoints/` folder per section (`src/main/sections/<Name>/endpoints/`)
+plus `src/main/endpoints/` for cross-section ones and `src/auth/store/` for auth. Components
+call the generated `useXQuery`/`useXMutation` hooks only.
+
+Firestore has no generic request shape the way REST does (paths, live listeners, and one-shot
+reads/writes are all different), so there's no `axiosBaseQuery`-style translator — the shared
+`emptyApi` uses `fakeBaseQuery()` and each endpoint defines its own `queryFn` calling the
+Firebase SDK directly. Live data (participants, latest round, votes, vote status) uses
+`builder.query` + `onCacheEntryAdded` to open an `onSnapshot` listener and push updates into the
+RTK Query cache via `updateCachedData`, unsubscribing on `cacheEntryRemoved` — this is RTK
+Query's documented pattern for streaming/subscription data, not a custom one. One-shot writes
+(`createSession`, `castVote`, `revealVotes`, …) are plain `queryFn` mutations. No
+`providesTags`/`invalidatesTags` are used: subscriptions stay live via `onSnapshot`, so
+cache-tag invalidation would be redundant.
 
 ## Conventions
 
@@ -27,7 +52,10 @@ instead of relative paths). Beyond those:
 - No comments unless they explain a non-obvious "why" (a workaround, a hidden constraint).
   Well-named identifiers should carry the "what".
 - Don't add abstractions, config flags, or error handling for cases that can't happen here —
-  this is a small portfolio app, not a multi-tenant product.
+  this is a small portfolio app, not a multi-tenant product. The RTK Query endpoints layer
+  above is the one deliberate exception: it exists to match the user's personal
+  auth-endpoints/action-endpoints convention used across their other projects, not because this
+  app needs it. Keep it; don't "simplify" it back to direct Firebase calls without asking.
 - No test suite and no error boundaries — a deliberate choice, not an oversight. Verification
   leans on `npm run build`, `npm run lint`, and manual browser smoke testing instead. Don't add
   tests or error boundaries unasked; if that tradeoff ever needs revisiting, that's a decision
