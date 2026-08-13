@@ -69,8 +69,9 @@ instead of relative paths). Beyond those:
 - `votes` holds the actual value and is read-restricted (own vote, or any vote once the round
   is `revealed`). `voteStatus` is a parallel, openly-readable doc written alongside each vote
   so the UI can show "who's voted" without exposing values early — Firestore has no
-  server-side function to do this in one place the way the old Postgres RPC did, so it's two
-  writes per vote instead of one.
+  server-side function to do this in one place the way the old Postgres RPC did, so a vote is
+  two documents rather than one. They're committed together via `writeBatch` so a partial
+  failure can't leave a counted vote that never shows as "voted".
 - Security rules live in `firebase/firestore.rules`. Before deploying a rules change, check it
   against the read/write cases in the README's "How it works" section — especially that a vote
   value is genuinely unreadable pre-reveal, not just hidden in the UI.

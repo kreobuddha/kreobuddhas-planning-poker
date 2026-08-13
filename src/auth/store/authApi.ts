@@ -1,6 +1,7 @@
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { emptyApi } from '@/store/emptyApi';
+import { toQueryError } from '@/store/queryError';
 
 export const authApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -10,9 +11,7 @@ export const authApi = emptyApi.injectEndpoints({
           const credential = await signInAnonymously(auth);
           return { data: { uid: credential.user.uid } };
         } catch (e) {
-          return {
-            error: { status: 'CUSTOM_ERROR', error: e instanceof Error ? e.message : 'Could not sign in.' },
-          };
+          return toQueryError(e, 'Could not sign in.');
         }
       },
     }),

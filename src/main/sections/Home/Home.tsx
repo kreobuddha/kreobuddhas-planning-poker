@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { generateSessionCode } from '@/lib/code';
 import { useCreateSessionMutation, useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
+import { errorMessage } from '@/store/queryError';
 
 interface HomeProps {
   userId: string;
@@ -98,13 +99,6 @@ const Home = ({ userId }: HomeProps): ReactElement => {
       {error && <p className="home__error">{error}</p>}
     </div>
   );
-};
-
-const errorMessage = (err: unknown, fallback: string): string => {
-  if (err && typeof err === 'object' && 'error' in err && typeof err.error === 'string') {
-    return err.error;
-  }
-  return fallback;
 };
 
 export default Home;

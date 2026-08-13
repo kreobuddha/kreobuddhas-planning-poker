@@ -2,6 +2,7 @@ import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/fires
 import { db } from '@/lib/firebase';
 import type { ISession } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
+import { toQueryError } from '@/store/queryError';
 
 export const homeApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -15,12 +16,7 @@ export const homeApi = emptyApi.injectEndpoints({
           });
           return { data: { id: sessionRef.id, code, adminId: userId, createdAt: Date.now() } };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not create session.',
-            },
-          };
+          return toQueryError(e, 'Could not create session.');
         }
       },
     }),
@@ -33,12 +29,7 @@ export const homeApi = emptyApi.injectEndpoints({
           });
           return { data: undefined };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not join session.',
-            },
-          };
+          return toQueryError(e, 'Could not join session.');
         }
       },
     }),

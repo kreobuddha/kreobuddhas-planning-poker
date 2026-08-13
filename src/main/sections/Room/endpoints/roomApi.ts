@@ -7,13 +7,14 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { withMillis } from '@/lib/firestoreDoc';
 import type { IParticipant, IRound, IVote } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
+import { toQueryError } from '@/store/queryError';
 
 interface RoundArg {
   sessionId: string;
@@ -116,12 +117,7 @@ export const roomApi = emptyApi.injectEndpoints({
           });
           return { data: undefined };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not start round.',
-            },
-          };
+          return toQueryError(e, 'Could not start round.');
         }
       },
     }),
@@ -129,23 +125,18 @@ export const roomApi = emptyApi.injectEndpoints({
     castVote: builder.mutation<void, RoundArg & { userId: string; value: number }>({
       queryFn: async ({ sessionId, roundId, userId, value }) => {
         try {
-          await Promise.all([
-            setDoc(doc(db, 'sessions', sessionId, 'rounds', roundId, 'votes', userId), {
-              value,
-              createdAt: serverTimestamp(),
-            }),
-            setDoc(doc(db, 'sessions', sessionId, 'rounds', roundId, 'voteStatus', userId), {
-              votedAt: serverTimestamp(),
-            }),
-          ]);
+          const batch = writeBatch(db);
+          batch.set(doc(db, 'sessions', sessionId, 'rounds', roundId, 'votes', userId), {
+            value,
+            createdAt: serverTimestamp(),
+          });
+          batch.set(doc(db, 'sessions', sessionId, 'rounds', roundId, 'voteStatus', userId), {
+            votedAt: serverTimestamp(),
+          });
+          await batch.commit();
           return { data: undefined };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not submit vote.',
-            },
-          };
+          return toQueryError(e, 'Could not submit vote.');
         }
       },
     }),
@@ -156,12 +147,7 @@ export const roomApi = emptyApi.injectEndpoints({
           await updateDoc(doc(db, 'sessions', sessionId, 'rounds', roundId), { revealed: true });
           return { data: undefined };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not reveal votes.',
-            },
-          };
+          return toQueryError(e, 'Could not reveal votes.');
         }
       },
     }),

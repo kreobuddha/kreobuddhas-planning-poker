@@ -2,7 +2,9 @@ import './Room.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
+import { errorMessage } from '@/store/queryError';
 import {
   useAskQuestionMutation,
   useCastVoteMutation,
@@ -30,25 +32,18 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     data: session,
     error: sessionError,
     isLoading: sessionLoading,
-  } = useFindSessionByCodeQuery(code?.toUpperCase() ?? '', { skip: !code });
+  } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [] } = useSubscribeParticipantsQuery(session?.id ?? '', {
-    skip: !session,
-  });
-  const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? '', {
-    skip: !session,
-  });
+  const { data: participants = [] } = useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
   const { data: myVote = null } = useSubscribeMyVoteQuery(
-    session && round ? { sessionId: session.id, roundId: round.id, userId } : { sessionId: '', roundId: '', userId },
-    { skip: !session || !round }
+    session && round ? { sessionId: session.id, roundId: round.id, userId } : skipToken
   );
   const { data: votedIds = [] } = useSubscribeVoteStatusQuery(
-    session && round ? { sessionId: session.id, roundId: round.id } : { sessionId: '', roundId: '' },
-    { skip: !session || !round }
+    session && round ? { sessionId: session.id, roundId: round.id } : skipToken
   );
   const { data: votes = [] } = useSubscribeVotesQuery(
-    session && round ? { sessionId: session.id, roundId: round.id } : { sessionId: '', roundId: '' },
-    { skip: !session || !round?.revealed }
+    session && round?.revealed ? { sessionId: session.id, roundId: round.id } : skipToken
   );
 
   const [askQuestion] = useAskQuestionMutation();
@@ -87,6 +82,8 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       setError(errorMessage(err, 'Could not reveal votes.'));
     }
   };
+
+  console.log('Room render', { session, participants, round, myVote, votedIds, votes });
 
   if (error || sessionError) {
     return <div className="room__error">{error ?? errorMessage(sessionError, 'Session not found.')}</div>;
@@ -152,13 +149,6 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       </div>
     </div>
   );
-};
-
-const errorMessage = (err: unknown, fallback: string): string => {
-  if (err && typeof err === 'object' && 'error' in err && typeof err.error === 'string') {
-    return err.error;
-  }
-  return fallback;
 };
 
 export default Room;

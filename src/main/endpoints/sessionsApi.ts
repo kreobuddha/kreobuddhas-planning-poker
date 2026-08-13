@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase';
 import { withMillis } from '@/lib/firestoreDoc';
 import type { ISession } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
+import { queryError, toQueryError } from '@/store/queryError';
 
 export const sessionsApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
@@ -14,18 +15,13 @@ export const sessionsApi = emptyApi.injectEndpoints({
           );
           const sessionDoc = snapshot.docs[0];
           if (!sessionDoc) {
-            return { error: { status: 'CUSTOM_ERROR', error: 'Session not found.' } };
+            return queryError('Session not found.');
           }
           return {
             data: { id: sessionDoc.id, ...withMillis(sessionDoc.data() as Omit<ISession, 'id'>) },
           };
         } catch (e) {
-          return {
-            error: {
-              status: 'CUSTOM_ERROR',
-              error: e instanceof Error ? e.message : 'Could not find session.',
-            },
-          };
+          return toQueryError(e, 'Could not find session.');
         }
       },
     }),
