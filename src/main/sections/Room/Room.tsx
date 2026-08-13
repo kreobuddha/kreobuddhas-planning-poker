@@ -3,19 +3,20 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { CARD_DECKS, DEFAULT_DECK } from '@/config';
+import { CARD_DECKS, deckKeyOf } from '@/config';
 import type { DeckKey } from '@/config';
+import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
+import { useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
 import { errorMessage } from '@/store/queryError';
 import {
   useAskQuestionMutation,
   useCastVoteMutation,
+  useClearVoteMutation,
   useRevealVotesMutation,
   useSetDeckMutation,
   useSubscribeLatestRoundQuery,
-  useSubscribeMyVoteQuery,
   useSubscribeParticipantsQuery,
-  useSubscribeVoteStatusQuery,
   useSubscribeVotesQuery,
 } from '@/main/sections/Room/endpoints/roomApi';
 import VoteCards from '@/components/VoteCards/VoteCards';
@@ -32,6 +33,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const { code } = useParams<{ code: string }>();
   const [question, setQuestion] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState(readStoredName);
 
   const {
     data: session,
@@ -39,27 +41,26 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     isLoading: sessionLoading,
   } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [] } = useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  const { data: participants = [], isLoading: participantsLoading } =
+    useSubscribeParticipantsQuery(session?.id ?? skipToken);
   const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
-  const { data: myVote = null } = useSubscribeMyVoteQuery(
-    session && round ? { sessionId: session.id, roundId: round.id, userId } : skipToken
-  );
-  const { data: votedIds = [] } = useSubscribeVoteStatusQuery(
-    session && round ? { sessionId: session.id, roundId: round.id } : skipToken
-  );
   const { data: votes = [] } = useSubscribeVotesQuery(
-    session && round?.revealed ? { sessionId: session.id, roundId: round.id } : skipToken
+    session && round ? { sessionId: session.id, roundId: round.id } : skipToken
   );
 
   const [askQuestion] = useAskQuestionMutation();
-  const [castVote] = useCastVoteMutation();
+  const [castVote, { isLoading: casting }] = useCastVoteMutation();
+  const [clearVote, { isLoading: clearing }] = useClearVoteMutation();
   const [revealVotes] = useRevealVotesMutation();
   const [setDeck] = useSetDeckMutation();
+  const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
-  const votedIdsSet = new Set(votedIds);
-  const deck = session?.deck ?? DEFAULT_DECK;
+  // A vote document's id is its voter's uid, so the votes list doubles as "who has voted".
+  const myVote = votes.find((v) => v.id === userId) ?? null;
+  const votedIdsSet = new Set(votes.map((v) => v.id));
+  const deck = deckKeyOf(session?.deck);
   const votingOpen = Boolean(round && !round.revealed);
 
   const handleAskQuestion = async (e: FormEvent): Promise<void> => {
@@ -73,10 +74,16 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
+  // Picking the card you already hold clears the vote, which is the only way back to "waiting".
   const handleVote = async (value: number): Promise<void> => {
     if (!session || !round || !me) return;
+    const target = { sessionId: session.id, roundId: round.id, userId };
     try {
-      await castVote({ sessionId: session.id, roundId: round.id, userId, value }).unwrap();
+      if (myVote?.value === value) {
+        await clearVote(target).unwrap();
+        return;
+      }
+      await castVote({ ...target, value }).unwrap();
     } catch (err) {
       setError(errorMessage(err, 'Could not submit vote.'));
     }
@@ -100,20 +107,65 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
-  if (error || sessionError) {
-    return <div className="room__error">{error ?? errorMessage(sessionError, 'Session not found.')}</div>;
+  // Reaching a room by its link rather than through Home means never having been asked for a
+  // name, so ask here instead of leaving an invisible participant who shows up as "Unknown"
+  // once the votes are revealed.
+  const handleJoin = async (e: FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!session || !nameDraft.trim()) return;
+    try {
+      await ensureParticipant({ sessionId: session.id, userId, name: nameDraft.trim() }).unwrap();
+      storeName(nameDraft.trim());
+    } catch (err) {
+      setError(errorMessage(err, 'Could not join this session.'));
+    }
+  };
+
+  // Only a session that can't be loaded replaces the screen. A failed action is reported over
+  // the room and dismissed, because the session behind it is still live and usable.
+  if (sessionError) {
+    return <div className="room__error">{errorMessage(sessionError, 'Session not found.')}</div>;
   }
   if (sessionLoading || !session) return <div className="room__loading">Loading session…</div>;
 
+  if (!participantsLoading && !me) {
+    return (
+      <div className="room room--joining">
+        <form onSubmit={handleJoin} className="room__join-form">
+          <h1>Join session {session.code}</h1>
+          <label htmlFor="room-name">Your name</label>
+          <input
+            id="room-name"
+            placeholder="Your name"
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+          />
+          <button type="submit" disabled={joining || !nameDraft.trim()}>
+            Join
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="room">
+      {error && (
+        <div className="room__banner" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <header className="room__header">
         <Link to="/" className="room__back">
           ← Home
         </Link>
         <div className="room__title-row">
           <h1>Session {session.code}</h1>
-          {isAdmin && <CopyLinkButton />}
+          <CopyLinkButton />
         </div>
         <p>
           Share this code with your team to let them join.
@@ -158,7 +210,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
                   <VoteCards
                     values={CARD_DECKS[deck].values}
                     selected={myVote?.value ?? null}
-                    disabled={false}
+                    disabled={casting || clearing}
                     onSelect={handleVote}
                   />
                   {isAdmin && (

@@ -1,10 +1,10 @@
 # Planning Poker
 
-A real-time planning poker tool for team estimation. Create a session, share the code,
-and vote on how long a task will take — in person-days — together.
+A real-time planning poker tool for team estimation. Create a session, share the code or the
+room link, and vote on how long a task will take — in person-days — together.
 
-- An admin creates a session and asks a question ("How long will X take?").
-- Teammates join with a code and pick a card (0.5, 1, 2, 3, 5, 8, 13, 20 person-days).
+- An admin creates a session, picks a card deck, and asks a question ("How long will X take?").
+- Teammates join with a code and pick a card; picking the same card again clears the vote.
 - Votes stay hidden until the admin reveals them, then everyone sees all cards and the average.
 
 ## Stack
@@ -40,26 +40,68 @@ and vote on how long a task will take — in person-days — together.
    npm run dev
    ```
 
+## Testing the security rules
+
+The rules are the only server-side boundary in this app, and they can't be checked from the
+browser — a denied read looks the same as an empty one. They have their own suite, run against
+the Firestore emulator:
+
+```bash
+npm run test:rules
+```
+
+The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
+CLAUDE.md for why.
+
+## Optional: Claude Code preview config
+
+`.claude/` is gitignored. To let Claude Code start and drive the dev server itself, create
+`.claude/launch.json` locally:
+
+```json
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "planning-poker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    }
+  ]
+}
+```
+
 ## How it works
 
 - Each visitor is signed in anonymously via Firebase Auth, so no signup is required to
   create or join a session.
 - Sessions are looked up by a short join code; the creator becomes the session admin.
-- Votes are hidden from other participants until the admin reveals the round — enforced by
-  Firestore security rules ([`firebase/firestore.rules`](firebase/firestore.rules)), not just
-  the UI. A parallel `voteStatus` doc (no value, just a timestamp) lets everyone see _who_ has
-  voted without exposing values early.
+- Votes are hidden from other participants until the admin reveals the round. **This is a UI
+  guarantee, not a security boundary** — a participant who opens the network tab can read the
+  values early. Firestore allows or denies a collection list as a whole and can't return a
+  filtered subset, so showing _who_ has voted and hiding _what_ they voted can't both come from
+  the rules; showing progress won.
+- What the rules ([`firebase/firestore.rules`](firebase/firestore.rules)) do enforce: you can
+  only write your own vote, and only while the round is still open — so a revealed result
+  can't be rewritten afterwards.
+- Picking the card you already selected clears your vote and puts you back to _waiting_.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
-  `onSnapshot` listeners on the `participants`, `rounds`, `votes`, and `voteStatus` collections.
+  `onSnapshot` listeners on the `participants`, `rounds`, and `votes` collections.
 
 ## Project structure
 
 ```
 src/
-  components/   VoteCards, ParticipantList, Results
-  hooks/        useAuth (anonymous sign-in)
-  lib/          Firebase client, session code generator
-  pages/        Home (create/join), Room (voting + reveal)
+  auth/         userSlice (uid/loading/error), useCheckAuth, store/authApi
+  components/   VoteCards, ParticipantList, Results, DeckPicker, CopyLinkButton
+  lib/          Firebase client, session code generator, Timestamp conversion
+  main/
+    endpoints/  sessionsApi (cross-section: look a session up by code)
+    sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/
+  store/        configureStore, emptyApi, firebaseBaseQuery, firestoreStream
+  config.ts     Card decks
+  types.ts      ISession, IParticipant, IRound, IVote
 firebase/
   firestore.rules            Security rules
   firestore.indexes.json     Composite index config (empty — none needed yet)

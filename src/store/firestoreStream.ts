@@ -28,10 +28,16 @@ export const streamFrom =
       updateCachedData(() => applySelect(snap, effectiveSelect(args)) as T);
     };
 
+    // Without this handler a denied or dropped listener fails silently, and the cache entry
+    // keeps whatever it had — indistinguishable from a room where genuinely nothing happened.
+    const onError = (e: Error): void => {
+      console.error(`[firestoreStream] listener on ${args.url} stopped`, e);
+    };
+
     const ref = resolveRef(args);
     const unsubscribe = isCollection(args.url)
-      ? onSnapshot(ref as Query, push)
-      : onSnapshot(ref as DocumentReference, push);
+      ? onSnapshot(ref as Query, push, onError)
+      : onSnapshot(ref as DocumentReference, push, onError);
 
     await cacheEntryRemoved;
     unsubscribe();

@@ -9,3 +9,9 @@ export const CARD_DECKS = {
 export type DeckKey = keyof typeof CARD_DECKS;
 
 export const DEFAULT_DECK: DeckKey = 'modified';
+
+// A session's `deck` is a plain string in Firestore, so it can name a deck this build no longer
+// has — an older key, or a value written outside the app. Indexing CARD_DECKS with it directly
+// would hand `undefined` to every read site and crash the room for everyone in it.
+export const deckKeyOf = (deck: string | undefined): DeckKey =>
+  deck !== undefined && deck in CARD_DECKS ? (deck as DeckKey) : DEFAULT_DECK;

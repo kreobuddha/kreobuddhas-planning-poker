@@ -9,6 +9,15 @@ the KB flagged as accepted tech debt at Unigine.
 > Audited 2026-08-11 by reading all 17 source files in full, plus `docs/code-rules.md`,
 > `CLAUDE.md`, `firebase/firestore.rules`, and every config file at repo root.
 
+> **Snapshot, not living documentation.** Kept as a record of what the codebase looked like on
+> 2026-08-11; its file references are deliberately not rewritten as the code moves. Since then:
+> `src/hooks/useAuth.ts` became `src/auth/useCheckAuth.ts` and `src/pages/` became
+> `src/main/sections/`; `VoteCards`'s `disabled` prop (§4) is now driven by the in-flight vote;
+> and §3's "real server-enforced access control" no longer holds — the `voteStatus` collection
+> was removed and hiding votes before the reveal is now UI-level by choice, so on that specific
+> axis the project has moved back toward the Unigine pattern the section contrasts it with.
+> See `README.md` for the current model.
+
 ---
 
 ## 1. Rule Compliance

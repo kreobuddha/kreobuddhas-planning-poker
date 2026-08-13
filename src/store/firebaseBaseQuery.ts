@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -32,7 +33,7 @@ export type Select = 'array' | 'first' | 'ids';
 
 export interface ReadWriteArgs {
   url: string;
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data?: DocumentData;
   params?: {
     where?: [string, WhereFilterOp, unknown][];
@@ -42,6 +43,8 @@ export interface ReadWriteArgs {
   select?: Select;
   // A collection GET that must yield exactly one document, e.g. lookup by unique code.
   single?: boolean;
+  // Turns a GET that found nothing — a missing document, or an empty `single` query — into an
+  // error carrying this message, instead of a `null` the caller has to interpret.
   notFound?: string;
   // Marks an endpoint whose live listener is the source of truth, so a failed initial read
   // degrades to empty instead of erroring. Without this, a transient denial (see below) would
@@ -128,13 +131,16 @@ const firebaseBaseQuery =
         case 'PATCH':
           await updateDoc(docRef(args.url), args.data ?? {});
           return { data: undefined };
+        case 'DELETE':
+          await deleteDoc(docRef(args.url));
+          return { data: undefined };
         default: {
           const ref = resolveRef(args);
           const snap = isCollection(args.url)
             ? await getDocs(ref as Query)
             : await getDoc(ref as ReturnType<typeof docRef>);
           const result = applySelect(snap, effectiveSelect(args));
-          if (args.single && result === null) return queryError(args.notFound ?? 'Not found.');
+          if (args.notFound !== undefined && result === null) return queryError(args.notFound);
           return { data: result };
         }
       }
@@ -143,7 +149,11 @@ const firebaseBaseQuery =
       // flips a local value (e.g. `round.revealed`) before the server commits, so the revealing
       // client can out-run its own write against a rule that reads the server state. The
       // listener retries and recovers, so don't poison the cache entry over it.
-      if (args.method !== 'BATCH' && args.streamed) {
+      //
+      // `notFound` opts out: an endpoint that distinguishes "no such document" from "everything
+      // is fine, just empty" has a caller waiting on that distinction, and degrading to empty
+      // would leave it loading forever instead of reporting anything.
+      if (args.method !== 'BATCH' && args.streamed && args.notFound === undefined) {
         console.warn(`[firebaseBaseQuery] initial read of ${args.url} failed; awaiting listener`, e);
         return { data: emptyFor(args) };
       }
