@@ -40,6 +40,19 @@ room link, and vote on how long a task will take — in person-days — together
    npm run dev
    ```
 
+## Testing the security rules
+
+The rules are the only server-side boundary in this app, and they can't be checked from the
+browser — a denied read looks the same as an empty one. They have their own suite, run against
+the Firestore emulator:
+
+```bash
+npm run test:rules
+```
+
+The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
+CLAUDE.md for why.
+
 ## Optional: Claude Code preview config
 
 `.claude/` is gitignored. To let Claude Code start and drive the dev server itself, create

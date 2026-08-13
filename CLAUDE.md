@@ -120,10 +120,16 @@ instead of relative paths). Beyond those:
   above is the one deliberate exception: it exists to match the user's personal
   auth-endpoints/action-endpoints convention used across their other projects, not because this
   app needs it. Keep it; don't "simplify" it back to direct Firebase calls without asking.
-- No test suite and no error boundaries — a deliberate choice, not an oversight. Verification
-  leans on `npm run build`, `npm run lint`, and manual browser smoke testing instead. Don't add
-  tests or error boundaries unasked; if that tradeoff ever needs revisiting, that's a decision
-  for the user to make, not something to introduce quietly.
+- No UI tests and no error boundaries — a deliberate choice, not an oversight. Verification of
+  application code leans on `npm run build`, `npm run lint`, and manual browser smoke testing
+  instead. Don't add tests or error boundaries unasked; if that tradeoff ever needs revisiting,
+  that's a decision for the user to make, not something to introduce quietly.
+- **The Firestore rules are the one exception** (`tests/firestore-rules.test.ts`,
+  `npm run test:rules`). They're the only server-side boundary here, and the browser can't
+  verify them: a denied read arrives looking exactly like an empty one, so a hole stays
+  invisible until someone exploits it. The suite runs against the emulator via
+  `node --test` — no test framework, and it needs a JDK on PATH for the emulator. Extend it
+  whenever a rule changes.
 
 ## Firebase conventions
 
