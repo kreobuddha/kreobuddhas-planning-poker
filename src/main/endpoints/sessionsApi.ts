@@ -1,29 +1,22 @@
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { withMillis } from '@/lib/firestoreDoc';
 import type { ISession } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
-import { queryError, toQueryError } from '@/store/queryError';
+import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
+import { streamFrom } from '@/store/firestoreStream';
+
+// Streamed so room-wide settings (the card deck) reach every participant without a reload.
+const sessionByCodeUrl = (code: string): ReadWriteArgs => ({
+  url: '/sessions',
+  params: { where: [['code', '==', code.toUpperCase()]], limit: 1 },
+  single: true,
+  notFound: 'Session not found.',
+  streamed: true,
+});
 
 export const sessionsApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
     findSessionByCode: builder.query<ISession, string>({
-      queryFn: async (code) => {
-        try {
-          const snapshot = await getDocs(
-            query(collection(db, 'sessions'), where('code', '==', code.toUpperCase()), limit(1))
-          );
-          const sessionDoc = snapshot.docs[0];
-          if (!sessionDoc) {
-            return queryError('Session not found.');
-          }
-          return {
-            data: { id: sessionDoc.id, ...withMillis(sessionDoc.data() as Omit<ISession, 'id'>) },
-          };
-        } catch (e) {
-          return toQueryError(e, 'Could not find session.');
-        }
-      },
+      query: sessionByCodeUrl,
+      onCacheEntryAdded: streamFrom<string, ISession>(sessionByCodeUrl),
     }),
   }),
   overrideExisting: false,

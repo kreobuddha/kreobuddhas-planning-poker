@@ -1,8 +1,13 @@
+import type { DeckKey } from '@/config';
+
 export interface ISession {
   id: string;
   code: string;
   adminId: string;
   createdAt: number;
+  // Optional: sessions created before decks existed have no value here, so read sites fall
+  // back to DEFAULT_DECK.
+  deck?: DeckKey;
 }
 
 // Participant doc ID is the participant's own Firebase Auth uid.

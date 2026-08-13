@@ -1,0 +1,50 @@
+.deck-picker {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.deck-picker__title {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.deck-picker__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.deck-picker__option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+
+  &--selected {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.deck-picker__label {
+  font-weight: 600;
+}
+
+.deck-picker__values {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.deck-picker__hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
