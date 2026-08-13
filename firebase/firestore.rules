@@ -6,34 +6,79 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Mirrors CARD_DECKS in src/config.ts — rules can't import it, so both sides must be
+    // edited together when a deck is added, renamed, or rescaled.
+    function deckValues(deck) {
+      return deck == 'fibonacci' ? [1, 2, 3, 5, 8, 13, 21]
+           : deck == 'powers' ? [1, 2, 4, 8, 16, 32]
+           : [0.5, 1, 2, 3, 5, 8, 13, 20];
+    }
+
+    function isKnownDeck(deck) {
+      return deck in ['fibonacci', 'modified', 'powers'];
+    }
+
     match /sessions/{sessionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.adminId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.adminId == request.auth.uid;
+      function session() {
+        return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+      }
+
+      function isAdmin() {
+        return isSignedIn() && session().adminId == request.auth.uid;
+      }
+
+      // A session's document id IS its join code, so a room is reached with a direct get.
+      // `list` stays denied: it would let any signed-in visitor enumerate every code and walk
+      // into any room.
+      allow get: if isSignedIn();
+      allow list: if false;
+
+      allow create: if isSignedIn()
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.code == sessionId
+        && isKnownDeck(request.resource.data.deck)
+        && request.resource.data.keys().hasOnly(['code', 'adminId', 'deck', 'createdAt']);
+
+      // The deck is the only thing about a session that can change after creation — the code,
+      // the admin and the timestamp are fixed.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deck'])
+        && isKnownDeck(request.resource.data.deck);
 
       match /participants/{uid} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && uid == request.auth.uid;
+        allow write: if isSignedIn() && uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40;
       }
 
       match /rounds/{roundId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() &&
-          get(/databases/$(database)/documents/sessions/$(sessionId)).data.adminId == request.auth.uid;
-
-        // Vote values are hidden until the round is revealed, or it's your own vote.
-        match /votes/{uid} {
-          allow read: if isSignedIn() && (
-            uid == request.auth.uid ||
-            get(/databases/$(database)/documents/sessions/$(sessionId)/rounds/$(roundId)).data.revealed == true
-          );
-          allow write: if isSignedIn() && uid == request.auth.uid;
+        function roundIsOpen() {
+          return get(/databases/$(database)/documents/sessions/$(sessionId)/rounds/$(roundId))
+            .data.revealed == false;
         }
 
-        // Tracks WHO has voted (no value) so the UI can show progress before reveal.
-        match /voteStatus/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isAdmin();
+
+        // Votes are readable by everyone in the session, including before the reveal: the UI
+        // needs the list to show who has voted, and Firestore allows or denies a collection
+        // list as a whole — it can't hand back a filtered subset. Hiding the values pre-reveal
+        // is therefore the UI's job, not a security boundary: a participant can read them from
+        // the network tab. Accepted tradeoff, see README.
+        match /votes/{uid} {
           allow read: if isSignedIn();
-          allow write: if isSignedIn() && uid == request.auth.uid;
+
+          // Only your own vote, only while the round is open (so a revealed result can't be
+          // rewritten), and only a value that exists in this session's deck.
+          allow create, update: if isSignedIn() && uid == request.auth.uid
+            && roundIsOpen()
+            && request.resource.data.keys().hasOnly(['value', 'createdAt'])
+            && request.resource.data.value in deckValues(session().get('deck', 'modified'));
+
+          allow delete: if isSignedIn() && uid == request.auth.uid && roundIsOpen();
         }
       }
     }

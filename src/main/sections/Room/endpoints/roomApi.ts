@@ -20,21 +20,14 @@ const participantsUrl = (sessionId: string): ReadWriteArgs => ({
   streamed: true,
 });
 
+// Ordered by a client clock rather than serverTimestamp(): a pending serverTimestamp() reads
+// back as null locally, and null sorts last under `desc`, so the admin who just started a round
+// would keep seeing the previous one until the server acknowledged the write. Only the admin
+// writes rounds within a session, so one clock orders them all.
 const latestRoundUrl = (sessionId: string): ReadWriteArgs => ({
   url: `/sessions/${sessionId}/rounds`,
   params: { orderBy: [['createdAt', 'desc']], limit: 1 },
   select: 'first',
-  streamed: true,
-});
-
-const myVoteUrl = ({ sessionId, roundId, userId }: MyVoteArg): ReadWriteArgs => ({
-  url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
-  streamed: true,
-});
-
-const voteStatusUrl = ({ sessionId, roundId }: RoundArg): ReadWriteArgs => ({
-  url: `/sessions/${sessionId}/rounds/${roundId}/voteStatus`,
-  select: 'ids',
   streamed: true,
 });
 
@@ -55,16 +48,6 @@ export const roomApi = emptyApi.injectEndpoints({
       onCacheEntryAdded: streamFrom<string, IRound | null>(latestRoundUrl),
     }),
 
-    subscribeMyVote: builder.query<IVote | null, MyVoteArg>({
-      query: myVoteUrl,
-      onCacheEntryAdded: streamFrom<MyVoteArg, IVote | null>(myVoteUrl),
-    }),
-
-    subscribeVoteStatus: builder.query<string[], RoundArg>({
-      query: voteStatusUrl,
-      onCacheEntryAdded: streamFrom<RoundArg, string[]>(voteStatusUrl),
-    }),
-
     subscribeVotes: builder.query<IVote[], RoundArg>({
       query: votesUrl,
       onCacheEntryAdded: streamFrom<RoundArg, IVote[]>(votesUrl),
@@ -74,25 +57,22 @@ export const roomApi = emptyApi.injectEndpoints({
       query: ({ sessionId, question }) => ({
         url: `/sessions/${sessionId}/rounds`,
         method: 'POST',
-        data: { question, revealed: false, createdAt: serverTimestamp() },
+        data: { question, revealed: false, createdAt: Date.now() },
       }),
     }),
 
     castVote: builder.mutation<void, MyVoteArg & { value: number }>({
       query: ({ sessionId, roundId, userId, value }) => ({
-        method: 'BATCH',
-        writes: [
-          {
-            url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
-            method: 'PUT',
-            data: { value, createdAt: serverTimestamp() },
-          },
-          {
-            url: `/sessions/${sessionId}/rounds/${roundId}/voteStatus/${userId}`,
-            method: 'PUT',
-            data: { votedAt: serverTimestamp() },
-          },
-        ],
+        url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
+        method: 'PUT',
+        data: { value, createdAt: serverTimestamp() },
+      }),
+    }),
+
+    clearVote: builder.mutation<void, MyVoteArg>({
+      query: ({ sessionId, roundId, userId }) => ({
+        url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
+        method: 'DELETE',
       }),
     }),
 
@@ -118,11 +98,10 @@ export const roomApi = emptyApi.injectEndpoints({
 export const {
   useSubscribeParticipantsQuery,
   useSubscribeLatestRoundQuery,
-  useSubscribeMyVoteQuery,
-  useSubscribeVoteStatusQuery,
   useSubscribeVotesQuery,
   useAskQuestionMutation,
   useCastVoteMutation,
+  useClearVoteMutation,
   useSetDeckMutation,
   useRevealVotesMutation,
 } = roomApi;

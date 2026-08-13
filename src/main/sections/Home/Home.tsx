@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateSessionCode } from '@/lib/code';
+import { readStoredName, storeName } from '@/lib/storedName';
 import { useCreateSessionMutation, useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
@@ -13,7 +14,7 @@ interface HomeProps {
 
 const Home = ({ userId }: HomeProps): ReactElement => {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(readStoredName);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,8 +33,8 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     setError(null);
     try {
       const code = generateSessionCode();
-      const session = await createSession({ userId, code }).unwrap();
-      await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
+      await createSession({ userId, code, name: name.trim() }).unwrap();
+      storeName(name.trim());
       navigate(`/room/${code}`);
     } catch (err) {
       setError(errorMessage(err, 'Could not create session.'));
@@ -54,6 +55,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
       const code = joinCode.trim().toUpperCase();
       const session = await findSessionByCode(code).unwrap();
       await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
+      storeName(name.trim());
       navigate(`/room/${code}`);
     } catch (err) {
       setError(errorMessage(err, 'Could not join session.'));
