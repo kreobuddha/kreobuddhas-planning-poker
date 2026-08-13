@@ -1,4 +1,5 @@
 import { serverTimestamp } from 'firebase/firestore';
+import type { DeckKey } from '@/config';
 import type { IParticipant, IRound, IVote } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
@@ -95,6 +96,14 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
+    setDeck: builder.mutation<void, { sessionId: string; deck: DeckKey }>({
+      query: ({ sessionId, deck }) => ({
+        url: `/sessions/${sessionId}`,
+        method: 'PATCH',
+        data: { deck },
+      }),
+    }),
+
     revealVotes: builder.mutation<void, RoundArg>({
       query: ({ sessionId, roundId }) => ({
         url: `/sessions/${sessionId}/rounds/${roundId}`,
@@ -114,5 +123,6 @@ export const {
   useSubscribeVotesQuery,
   useAskQuestionMutation,
   useCastVoteMutation,
+  useSetDeckMutation,
   useRevealVotesMutation,
 } = roomApi;

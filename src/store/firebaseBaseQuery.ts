@@ -85,6 +85,12 @@ const toEntity = (snap: { id: string; data: () => DocumentData | undefined }): D
   ...withMillis((snap.data() ?? {}) as Record<string, unknown>),
 });
 
+// `single` implies 'first'. Shared so the initial fetch and the live stream reduce a snapshot
+// identically — otherwise a `single` + `streamed` endpoint would fetch one object and then
+// stream an array over it.
+export const effectiveSelect = (args: ReadWriteArgs): Select =>
+  args.select ?? (args.single ? 'first' : 'array');
+
 export const applySelect = (
   snap: QuerySnapshot | DocumentSnapshot,
   select: Select = 'array'
@@ -96,7 +102,7 @@ export const applySelect = (
 };
 
 const emptyFor = (args: ReadWriteArgs): unknown =>
-  !isCollection(args.url) || args.select === 'first' ? null : [];
+  !isCollection(args.url) || effectiveSelect(args) === 'first' ? null : [];
 
 const firebaseBaseQuery =
   (): BaseQueryFn<FirebaseQueryArgs, unknown, FetchBaseQueryError> => async (args) => {
@@ -127,7 +133,7 @@ const firebaseBaseQuery =
           const snap = isCollection(args.url)
             ? await getDocs(ref as Query)
             : await getDoc(ref as ReturnType<typeof docRef>);
-          const result = applySelect(snap, args.single ? 'first' : args.select);
+          const result = applySelect(snap, effectiveSelect(args));
           if (args.single && result === null) return queryError(args.notFound ?? 'Not found.');
           return { data: result };
         }

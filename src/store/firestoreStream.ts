@@ -1,7 +1,7 @@
 import { onSnapshot } from 'firebase/firestore';
 import type { DocumentReference, DocumentSnapshot, Query, QuerySnapshot } from 'firebase/firestore';
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
-import { applySelect, isCollection, resolveRef } from '@/store/firebaseBaseQuery';
+import { applySelect, effectiveSelect, isCollection, resolveRef } from '@/store/firebaseBaseQuery';
 
 // The slice of RTK Query's cache-lifecycle api this helper needs.
 interface StreamApi<T> {
@@ -25,7 +25,7 @@ export const streamFrom =
 
     const args = toArgs(arg);
     const push = (snap: QuerySnapshot | DocumentSnapshot): void => {
-      updateCachedData(() => applySelect(snap, args.select) as T);
+      updateCachedData(() => applySelect(snap, effectiveSelect(args)) as T);
     };
 
     const ref = resolveRef(args);

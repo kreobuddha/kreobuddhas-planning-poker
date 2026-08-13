@@ -9,6 +9,33 @@
   margin: 0 0 2rem;
 }
 
+.room__back {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.room__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.room__you {
+  margin-left: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--border);
+  color: var(--text);
+}
+
 .room__body {
   display: grid;
   grid-template-columns: 220px 1fr;

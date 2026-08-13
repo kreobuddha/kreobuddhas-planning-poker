@@ -1,14 +1,17 @@
 import './Room.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
+import { CARD_DECKS, DEFAULT_DECK } from '@/config';
+import type { DeckKey } from '@/config';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
 import {
   useAskQuestionMutation,
   useCastVoteMutation,
   useRevealVotesMutation,
+  useSetDeckMutation,
   useSubscribeLatestRoundQuery,
   useSubscribeMyVoteQuery,
   useSubscribeParticipantsQuery,
@@ -18,6 +21,8 @@ import {
 import VoteCards from '@/components/VoteCards/VoteCards';
 import ParticipantList from '@/components/ParticipantList/ParticipantList';
 import Results from '@/components/Results/Results';
+import DeckPicker from '@/components/DeckPicker/DeckPicker';
+import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
 
 interface RoomProps {
   userId: string;
@@ -49,10 +54,13 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [askQuestion] = useAskQuestionMutation();
   const [castVote] = useCastVoteMutation();
   const [revealVotes] = useRevealVotesMutation();
+  const [setDeck] = useSetDeckMutation();
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
   const votedIdsSet = new Set(votedIds);
+  const deck = session?.deck ?? DEFAULT_DECK;
+  const votingOpen = Boolean(round && !round.revealed);
 
   const handleAskQuestion = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -83,6 +91,15 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
+  const handleDeckChange = async (next: DeckKey): Promise<void> => {
+    if (!session) return;
+    try {
+      await setDeck({ sessionId: session.id, deck: next }).unwrap();
+    } catch (err) {
+      setError(errorMessage(err, 'Could not change the deck.'));
+    }
+  };
+
   if (error || sessionError) {
     return <div className="room__error">{error ?? errorMessage(sessionError, 'Session not found.')}</div>;
   }
@@ -91,8 +108,17 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   return (
     <div className="room">
       <header className="room__header">
-        <h1>Session {session.code}</h1>
-        <p>Share this code with your team to let them join.</p>
+        <Link to="/" className="room__back">
+          ← Home
+        </Link>
+        <div className="room__title-row">
+          <h1>Session {session.code}</h1>
+          {isAdmin && <CopyLinkButton />}
+        </div>
+        <p>
+          Share this code with your team to let them join.
+          {me && <span className="room__you">You are {me.name}</span>}
+        </p>
       </header>
 
       <div className="room__body">
@@ -107,6 +133,10 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         </aside>
 
         <main className="room__main">
+          {isAdmin && (
+            <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />
+          )}
+
           {isAdmin && (!round || round.revealed) && (
             <form onSubmit={handleAskQuestion} className="room__ask-form">
               <h2>Ask a question</h2>
@@ -126,6 +156,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
               {!round.revealed && (
                 <>
                   <VoteCards
+                    values={CARD_DECKS[deck].values}
                     selected={myVote?.value ?? null}
                     disabled={false}
                     onSelect={handleVote}

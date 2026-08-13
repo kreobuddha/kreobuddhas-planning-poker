@@ -1,4 +1,5 @@
 import { serverTimestamp } from 'firebase/firestore';
+import { DEFAULT_DECK } from '@/config';
 import { emptyApi } from '@/store/emptyApi';
 
 export const homeApi = emptyApi.injectEndpoints({
@@ -7,7 +8,7 @@ export const homeApi = emptyApi.injectEndpoints({
       query: ({ userId, code }) => ({
         url: '/sessions',
         method: 'POST',
-        data: { code, adminId: userId, createdAt: serverTimestamp() },
+        data: { code, adminId: userId, deck: DEFAULT_DECK, createdAt: serverTimestamp() },
       }),
     }),
     ensureParticipant: builder.mutation<void, { sessionId: string; userId: string; name: string }>({
