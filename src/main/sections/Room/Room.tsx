@@ -83,8 +83,6 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
-  console.log('Room render', { session, participants, round, myVote, votedIds, votes });
-
   if (error || sessionError) {
     return <div className="room__error">{error ?? errorMessage(sessionError, 'Session not found.')}</div>;
   }
