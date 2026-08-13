@@ -11,8 +11,9 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 - Redux Toolkit + RTK Query for the endpoints layer (see "Endpoints layer" below) — deliberately
   added despite the no-abstractions rule further down; don't strip it back out
 - `src/components/` — shared UI, one folder per component (VoteCards, ParticipantList, Results)
-- `src/store/` — `configureStore` (`index.ts`), `rootReducer.ts`, and the shared empty RTK Query
-  API instance (`emptyApi.ts`, `fakeBaseQuery()` — see below)
+- `src/store/` — `configureStore` (`index.ts`), `rootReducer.ts`, the shared empty RTK Query API
+  instance (`emptyApi.ts`), and the fake-backend layer: `firebaseBaseQuery.ts` +
+  `firestoreStream.ts` (see "Endpoints layer" below)
 - `src/auth/` — `userSlice` (uid/loading/error), `useCheckAuth` (anonymous sign-in bootstrap),
   `store/authApi.ts` (the `signInAnonymously` endpoint)
 - `src/lib/` — Firebase client init, session code generator
@@ -29,15 +30,41 @@ Query endpoint files, one `endpoints/` folder per section (`src/main/sections/<N
 plus `src/main/endpoints/` for cross-section ones and `src/auth/store/` for auth. Components
 call the generated `useXQuery`/`useXMutation` hooks only.
 
-Firestore has no generic request shape the way REST does (paths, live listeners, and one-shot
-reads/writes are all different), so there's no `axiosBaseQuery`-style translator — the shared
-`emptyApi` uses `fakeBaseQuery()` and each endpoint defines its own `queryFn` calling the
-Firebase SDK directly. Live data (participants, latest round, votes, vote status) uses
-`builder.query` + `onCacheEntryAdded` to open an `onSnapshot` listener and push updates into the
-RTK Query cache via `updateCachedData`, unsubscribing on `cacheEntryRemoved` — this is RTK
-Query's documented pattern for streaming/subscription data, not a custom one. One-shot writes
-(`createSession`, `castVote`, `revealVotes`, …) are plain `queryFn` mutations. No
-`providesTags`/`invalidatesTags` are used: subscriptions stay live via `onSnapshot`, so
+Endpoints are declarative `query: () => ({ url, method, data })` descriptors, exactly like the
+REST projects this codebase's conventions come from. `src/store/firebaseBaseQuery.ts` is the
+fake backend that executes them against Firestore. The HTTP vocabulary is deliberate mimicry —
+Firestore never speaks HTTP — and it maps as:
+
+| Verb | Firestore | Target |
+|---|---|---|
+| `GET` (default) | `getDocs` / `getDoc` | collection or document |
+| `POST` | `addDoc`, resolves to `{ id }` | collection (server-assigned id) |
+| `PUT` | `setDoc` | document (full replace) |
+| `PATCH` | `updateDoc` | document (partial) |
+| `BATCH` | `writeBatch` + `commit` | several documents, atomically |
+
+Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
+collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
+`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`,
+`'ids'`). `single: true` + `notFound` turns an empty filtered read into an error, which is how
+`findSessionByCode` reports a bad code.
+
+Live data still needs `onCacheEntryAdded`, because `BaseQueryFn` resolves exactly once and has
+no channel for later values. `streamFrom` in `src/store/firestoreStream.ts` bridges the two: an
+endpoint names its descriptor builder once and passes it to *both* `query` and `streamFrom`, so
+the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
+drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
+meaningful) and stay live after.
+
+Two things to keep in mind when editing this layer:
+
+- **Paths are strings, so a typo is a runtime error, not a compile error.** This is the accepted
+  cost of the indirection — same as `url` in the REST projects. Test path changes in the browser.
+- `src/auth/store/authApi.ts` stays on `queryFn`: `signInAnonymously` is Firebase *Auth*, not
+  Firestore, so it can't route through this baseQuery. This mirrors the REST projects, where
+  `authApi` is its own `createApi`.
+
+No `providesTags`/`invalidatesTags` are used: subscriptions stay live via `onSnapshot`, so
 cache-tag invalidation would be redundant.
 
 ## Conventions
