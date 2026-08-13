@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import Home from '@/pages/Home/Home';
-import Room from '@/pages/Room/Room';
+import { useCheckAuth } from '@/auth/useCheckAuth';
+import Home from '@/main/sections/Home/Home';
+import Room from '@/main/sections/Room/Room';
 
 const App = (): ReactElement => {
-  const { userId, loading, error } = useAuth();
+  const { userId, loading, error } = useCheckAuth();
 
   if (error) {
     return <div className="app-loading">Could not connect: {error}</div>;

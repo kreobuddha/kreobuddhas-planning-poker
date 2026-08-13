@@ -2,19 +2,10 @@ import './Home.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  limit,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { generateSessionCode } from '@/lib/code';
+import { useCreateSessionMutation, useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
+import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
+import { errorMessage } from '@/store/queryError';
 
 interface HomeProps {
   userId: string;
@@ -27,12 +18,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const ensureParticipant = async (sessionId: string, displayName: string): Promise<void> => {
-    await setDoc(doc(db, 'sessions', sessionId, 'participants', userId), {
-      name: displayName,
-      joinedAt: serverTimestamp(),
-    });
-  };
+  const [createSession] = useCreateSessionMutation();
+  const [ensureParticipant] = useEnsureParticipantMutation();
+  const [findSessionByCode] = useLazyFindSessionByCodeQuery();
 
   const handleCreate = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -44,16 +32,11 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     setError(null);
     try {
       const code = generateSessionCode();
-      const sessionRef = await addDoc(collection(db, 'sessions'), {
-        code,
-        adminId: userId,
-        createdAt: serverTimestamp(),
-      });
-
-      await ensureParticipant(sessionRef.id, name.trim());
+      const session = await createSession({ userId, code }).unwrap();
+      await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
       navigate(`/room/${code}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create session.');
+      setError(errorMessage(err, 'Could not create session.'));
     } finally {
       setBusy(false);
     }
@@ -69,16 +52,11 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     setError(null);
     try {
       const code = joinCode.trim().toUpperCase();
-      const snapshot = await getDocs(
-        query(collection(db, 'sessions'), where('code', '==', code), limit(1))
-      );
-      const sessionDoc = snapshot.docs[0];
-      if (!sessionDoc) throw new Error('No session found with that code.');
-
-      await ensureParticipant(sessionDoc.id, name.trim());
+      const session = await findSessionByCode(code).unwrap();
+      await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
       navigate(`/room/${code}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not join session.');
+      setError(errorMessage(err, 'Could not join session.'));
     } finally {
       setBusy(false);
     }
