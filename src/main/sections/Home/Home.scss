@@ -6,7 +6,7 @@
 }
 
 .home__subtitle {
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
   margin-bottom: 2rem;
 }
 
@@ -29,16 +29,16 @@
 }
 
 .home__card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-lg);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 
   p {
-    color: var(--text-muted);
+    color: var(--kreo-text-muted);
     font-size: 0.9rem;
     margin: 0;
   }

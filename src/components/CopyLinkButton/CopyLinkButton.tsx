@@ -1,7 +1,6 @@
-import './CopyLinkButton.scss';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import clsx from 'clsx';
+import { Button } from '@kreobuddha/ui';
 
 // Clipboard writes are refused outside a secure context and in browsers where the permission
 // is denied, so the failure is real and needs to show rather than reject silently.
@@ -32,13 +31,9 @@ const CopyLinkButton = (): ReactElement => {
   };
 
   return (
-    <button
-      type="button"
-      className={clsx('copy-link-button', status === 'failed' && 'copy-link-button--failed')}
-      onClick={handleCopy}
-    >
+    <Button variant="outlined" size="sm" danger={status === 'failed'} onClick={handleCopy}>
       {LABELS[status]}
-    </button>
+    </Button>
   );
 };
 

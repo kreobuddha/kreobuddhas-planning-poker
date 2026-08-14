@@ -2,6 +2,7 @@ import './Home.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@kreobuddha/ui';
 import { generateSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useCreateSessionMutation, useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
@@ -80,9 +81,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
         <form onSubmit={handleCreate} className="home__card">
           <h2>Start a session</h2>
           <p>Create a new room and share the code with your team.</p>
-          <button type="submit" disabled={busy}>
+          <Button type="submit" loading={busy}>
             Create session
-          </button>
+          </Button>
         </form>
 
         <form onSubmit={handleJoin} className="home__card">
@@ -92,9 +93,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
           />
-          <button type="submit" disabled={busy}>
+          <Button type="submit" variant="outlined" loading={busy}>
             Join
-          </button>
+          </Button>
         </form>
       </div>
 
