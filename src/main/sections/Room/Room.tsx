@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
+import { Button } from '@kreobuddha/ui';
 import { CARD_DECKS, deckKeyOf } from '@/config';
 import type { DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
@@ -140,9 +141,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
           />
-          <button type="submit" disabled={joining || !nameDraft.trim()}>
+          <Button type="submit" loading={joining} disabled={!nameDraft.trim()}>
             Join
-          </button>
+          </Button>
         </form>
       </div>
     );
@@ -153,9 +154,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       {error && (
         <div className="room__banner" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={() => setError(null)}>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)}>
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
@@ -197,7 +198,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
-              <button type="submit">Start voting</button>
+              <Button type="submit">Start voting</Button>
             </form>
           )}
 
@@ -214,9 +215,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
                     onSelect={handleVote}
                   />
                   {isAdmin && (
-                    <button className="room__reveal-btn" onClick={handleReveal}>
-                      Reveal cards
-                    </button>
+                    <Button onClick={handleReveal}>Reveal cards</Button>
                   )}
                 </>
               )}

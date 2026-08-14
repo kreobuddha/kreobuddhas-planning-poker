@@ -5,19 +5,19 @@
 }
 
 .room__header p {
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
   margin: 0 0 2rem;
 }
 
 .room__back {
   display: inline-block;
   margin-bottom: 0.75rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
   text-decoration: none;
   font-size: 0.9rem;
 
   &:hover {
-    color: var(--text);
+    color: var(--kreo-text-primary);
   }
 }
 
@@ -32,8 +32,8 @@
 .room__you {
   margin-left: 0.5rem;
   padding-left: 0.5rem;
-  border-left: 1px solid var(--border);
-  color: var(--text);
+  border-left: 1px solid var(--kreo-border-default);
+  color: var(--kreo-text-primary);
 }
 
 .room__body {
@@ -48,16 +48,16 @@
 }
 
 .room__sidebar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-lg);
   padding: 1.25rem;
 }
 
 .room__main {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-lg);
   padding: 1.75rem;
 }
 
@@ -75,10 +75,6 @@
   margin-bottom: 1.5rem;
 }
 
-.room__reveal-btn {
-  background: var(--success);
-}
-
 .room__banner {
   display: flex;
   align-items: center;
@@ -86,18 +82,10 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent-soft);
-
-  button {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    padding: 0.25rem 0.75rem;
-    font-size: 0.85rem;
-  }
+  border: 1px solid var(--kreo-border-default);
+  border-left: 3px solid var(--kreo-accent-500);
+  border-radius: var(--kreo-radius-md);
+  background: var(--kreo-surface-accent-soft);
 }
 
 .room--joining {
@@ -108,9 +96,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-lg);
   padding: 1.75rem;
 
   h1 {
@@ -119,7 +107,7 @@
   }
 
   label {
-    color: var(--text-muted);
+    color: var(--kreo-text-muted);
     font-size: 0.9rem;
   }
 
@@ -132,5 +120,5 @@
 .room__error {
   text-align: center;
   padding: 4rem 1rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
 }

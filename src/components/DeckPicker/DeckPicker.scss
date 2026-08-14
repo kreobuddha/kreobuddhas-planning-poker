@@ -1,12 +1,12 @@
 .deck-picker {
   margin-bottom: 1.75rem;
   padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--kreo-border-default);
 }
 
 .deck-picker__title {
   font-size: 1rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
   font-weight: 600;
 }
 
@@ -21,16 +21,29 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.25rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  background: var(--kreo-surface-page);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-md);
+  color: var(--kreo-text-primary);
   padding: 0.7rem 0.9rem;
   text-align: left;
 
   &--selected {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    color: var(--accent);
+    background: var(--kreo-surface-accent-soft);
+    border-color: var(--kreo-accent-500);
+    color: var(--kreo-text-accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: var(--kreo-border-w-focus) solid var(--kreo-border-focus);
+    outline-offset: 1px;
   }
 }
 
@@ -40,11 +53,11 @@
 
 .deck-picker__values {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
 }
 
 .deck-picker__hint {
   margin: 0.75rem 0 0;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
 }

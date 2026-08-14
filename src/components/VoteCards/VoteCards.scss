@@ -6,18 +6,30 @@
 }
 
 .vote-cards__card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  background: var(--kreo-surface-page);
+  border: 1px solid var(--kreo-border-default);
+  color: var(--kreo-text-primary);
   width: 56px;
   height: 76px;
-  border-radius: 8px;
+  border-radius: var(--kreo-radius-md);
   font-size: 1.1rem;
   font-weight: 600;
 
   &--selected {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    color: var(--accent);
+    background: var(--kreo-surface-accent-soft);
+    border-color: var(--kreo-accent-500);
+    color: var(--kreo-text-accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: var(--kreo-border-w-focus) solid var(--kreo-border-focus);
+    outline-offset: 1px;
   }
 }

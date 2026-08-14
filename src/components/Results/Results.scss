@@ -6,9 +6,9 @@
 }
 
 .results__card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--kreo-surface-page);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-md);
   padding: 0.75rem 1rem;
   text-align: center;
   min-width: 72px;
@@ -17,19 +17,19 @@
 .results__value {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--kreo-accent-500);
 }
 
 .results__name {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
   margin-top: 0.25rem;
 }
 
 .results__average {
-  color: var(--text-muted);
+  color: var(--kreo-text-muted);
 
   strong {
-    color: var(--text);
+    color: var(--kreo-text-primary);
   }
 }
