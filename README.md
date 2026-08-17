@@ -53,6 +53,19 @@ npm run test:rules
 The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
 CLAUDE.md for why.
 
+## Releases
+
+Versions are tagged from CI, never by hand:
+
+1. Add a section to [`CHANGELOG.md`](CHANGELOG.md) under the version being cut, and set the same
+   version in `package.json`.
+2. Merge that to `master`.
+3. **Actions → Release → Run workflow**, entering the version.
+
+The run refuses to tag if the manifest disagrees with what was typed or if the changelog has no
+section for it, then tags the commit and publishes the GitHub release with those notes. Nothing is
+sent to a package registry — this app is not a package.
+
 ## Optional: Claude Code preview config
 
 `.claude/` is gitignored. To let Claude Code start and drive the dev server itself, create
