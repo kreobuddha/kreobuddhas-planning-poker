@@ -10,11 +10,12 @@
   margin-bottom: 2rem;
 }
 
-.home__name-input {
-  width: 100%;
+// The heading and subtitle are centred, the field is not: its label sits above it and reads from
+// the left, so centring the block and left-aligning its contents is what keeps both true.
+.home__name-field {
   max-width: 320px;
-  margin-bottom: 2rem;
-  text-align: center;
+  margin: 0 auto 2rem;
+  text-align: left;
 }
 
 .home__actions {
@@ -44,7 +45,8 @@
   }
 }
 
+// Alert brings its own tone, mark and colours; the app only says where it sits.
 .home__error {
-  color: #ff6b6b;
   margin-top: 1.5rem;
+  text-align: left;
 }
