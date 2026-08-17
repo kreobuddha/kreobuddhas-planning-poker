@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { Button } from '@kreobuddha/ui';
+import { Alert, Button, Spinner, TextField, useToast } from '@kreobuddha/ui';
 import { CARD_DECKS, deckKeyOf } from '@/config';
 import type { DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
@@ -32,9 +32,15 @@ interface RoomProps {
 
 const Room = ({ userId }: RoomProps): ReactElement => {
   const { code } = useParams<{ code: string }>();
+  const { toast } = useToast();
   const [question, setQuestion] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState(readStoredName);
+
+  // An action that failed is news, not a state of the screen: the session behind it is still
+  // live and usable, so it is reported over the room and goes away on its own.
+  const reportFailure = (err: unknown, fallback: string): void => {
+    toast({ tone: 'danger', children: errorMessage(err, fallback) });
+  };
 
   const {
     data: session,
@@ -42,8 +48,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     isLoading: sessionLoading,
   } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [], isLoading: participantsLoading } =
-    useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  const { data: participants = [], isLoading: participantsLoading } = useSubscribeParticipantsQuery(
+    session?.id ?? skipToken
+  );
   const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
   const { data: votes = [] } = useSubscribeVotesQuery(
     session && round ? { sessionId: session.id, roundId: round.id } : skipToken
@@ -71,7 +78,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       await askQuestion({ sessionId: session.id, question: question.trim() }).unwrap();
       setQuestion('');
     } catch (err) {
-      setError(errorMessage(err, 'Could not start round.'));
+      reportFailure(err, 'Could not start round.');
     }
   };
 
@@ -86,7 +93,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       }
       await castVote({ ...target, value }).unwrap();
     } catch (err) {
-      setError(errorMessage(err, 'Could not submit vote.'));
+      reportFailure(err, 'Could not submit vote.');
     }
   };
 
@@ -95,7 +102,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     try {
       await revealVotes({ sessionId: session.id, roundId: round.id }).unwrap();
     } catch (err) {
-      setError(errorMessage(err, 'Could not reveal votes.'));
+      reportFailure(err, 'Could not reveal votes.');
     }
   };
 
@@ -104,7 +111,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     try {
       await setDeck({ sessionId: session.id, deck: next }).unwrap();
     } catch (err) {
-      setError(errorMessage(err, 'Could not change the deck.'));
+      reportFailure(err, 'Could not change the deck.');
     }
   };
 
@@ -118,28 +125,39 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       await ensureParticipant({ sessionId: session.id, userId, name: nameDraft.trim() }).unwrap();
       storeName(nameDraft.trim());
     } catch (err) {
-      setError(errorMessage(err, 'Could not join this session.'));
+      reportFailure(err, 'Could not join this session.');
     }
   };
 
-  // Only a session that can't be loaded replaces the screen. A failed action is reported over
-  // the room and dismissed, because the session behind it is still live and usable.
+  // Only a session that can't be loaded replaces the screen. A failed action is a toast, because
+  // the session behind it is still live and usable.
   if (sessionError) {
-    return <div className="room__error">{errorMessage(sessionError, 'Session not found.')}</div>;
+    return (
+      <div className="room__error">
+        <Alert tone="danger" title="This room could not be opened">
+          {errorMessage(sessionError, 'Session not found.')}
+        </Alert>
+      </div>
+    );
   }
-  if (sessionLoading || !session) return <div className="room__loading">Loading session…</div>;
+  if (sessionLoading || !session) {
+    return (
+      <div className="room__loading">
+        <Spinner label="Loading session" />
+      </div>
+    );
+  }
 
   if (!participantsLoading && !me) {
     return (
       <div className="room room--joining">
         <form onSubmit={handleJoin} className="room__join-form">
           <h1>Join session {session.code}</h1>
-          <label htmlFor="room-name">Your name</label>
-          <input
-            id="room-name"
-            placeholder="Your name"
+          <TextField
+            label="Your name"
             value={nameDraft}
             onChange={(e) => setNameDraft(e.target.value)}
+            fullWidth
           />
           <Button type="submit" loading={joining} disabled={!nameDraft.trim()}>
             Join
@@ -151,15 +169,6 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   return (
     <div className="room">
-      {error && (
-        <div className="room__banner" role="alert">
-          <span>{error}</span>
-          <Button variant="ghost" size="sm" onClick={() => setError(null)}>
-            Dismiss
-          </Button>
-        </div>
-      )}
-
       <header className="room__header">
         <Link to="/" className="room__back">
           ← Home
@@ -186,17 +195,16 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         </aside>
 
         <main className="room__main">
-          {isAdmin && (
-            <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />
-          )}
+          {isAdmin && <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />}
 
           {isAdmin && (!round || round.revealed) && (
             <form onSubmit={handleAskQuestion} className="room__ask-form">
               <h2>Ask a question</h2>
-              <input
-                placeholder="What are we estimating?"
+              <TextField
+                label="What are we estimating?"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+                fullWidth
               />
               <Button type="submit">Start voting</Button>
             </form>
@@ -214,9 +222,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
                     disabled={casting || clearing}
                     onSelect={handleVote}
                   />
-                  {isAdmin && (
-                    <Button onClick={handleReveal}>Reveal cards</Button>
-                  )}
+                  {isAdmin && <Button onClick={handleReveal}>Reveal cards</Button>}
                 </>
               )}
 

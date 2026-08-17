@@ -22,23 +22,10 @@ body {
   min-height: 100vh;
 }
 
-// Buttons are @kreobuddha/ui's Button, which styles itself. The two controls that stay native —
-// the vote cards and the deck options — are toggles rather than actions, so they carry their own
-// styles; a global `button` rule here would reach into the library's buttons too and fight them.
-
-input {
-  font: inherit;
-  padding: 0.6rem 0.8rem;
-  border-radius: var(--kreo-radius-md);
-  border: 1px solid var(--kreo-border-input);
-  background: var(--kreo-surface-sunken);
-  color: var(--kreo-text-primary);
-}
-
-input:focus-visible {
-  outline: var(--kreo-border-w-focus) solid var(--kreo-border-focus);
-  outline-offset: 1px;
-}
+// No global `input` or `button` rule lives here. Every field is now @kreobuddha/ui's TextField and
+// every action is its Button, both of which style themselves, and an element selector here would
+// reach inside them and fight. The two controls that stay native — the vote cards and the deck
+// options — are toggles rather than actions and carry their own styles in their own folders.
 
 h1,
 h2 {
