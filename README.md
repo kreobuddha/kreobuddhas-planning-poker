@@ -7,6 +7,9 @@ room link, and vote on how long a task will take — in person-days — together
 - Teammates join with a code and pick a card; picking the same card again clears the vote.
 - Votes stay hidden until the admin reveals them, then everyone sees all cards and the average.
 
+**Try it:** <https://kreobuddha-planning-poker-demo.web.app> — a public demo on its own Firebase
+project. Anyone can open a room there; nothing in it is private.
+
 ## Stack
 
 - React + TypeScript + Vite
@@ -52,6 +55,43 @@ npm run test:rules
 
 The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
 CLAUDE.md for why.
+
+## The public demo
+
+The demo at <https://kreobuddha-planning-poker-demo.web.app> is deployed to
+[Firebase Hosting](https://firebase.google.com/docs/hosting) by
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) on every push to `master`.
+
+It runs against **its own Firebase project**, separate from the one used for development, because
+the page is open to anyone and every visitor writes real documents. Setting it up is console work,
+done once:
+
+1. Create a second Firebase project, and repeat the **Setup** steps above in it — anonymous
+   provider, Firestore database, and the rules from `firebase/firestore.rules`. Leave it on the
+   free plan: without billing, abuse runs into a quota instead of into a bill.
+2. In **Project settings → Service accounts**, create a key for an account holding the **Firebase
+   Hosting Admin** role, and add the JSON as the repository secret `FIREBASE_SERVICE_ACCOUNT`.
+   That role is deliberately narrow: the deploy publishes the site and cannot reach Firestore or
+   its rules.
+3. In **Settings → Secrets and variables → Actions → Variables**, add the demo project's web
+   config as six repository variables: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+   `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`,
+   `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
+4. In **Authentication → Settings → Authorized domains**, confirm `<project>.web.app` is listed.
+   Firebase authorizes its own hosting domains, so there is normally nothing to add here; a custom
+   domain would have to be added by hand, and without it anonymous sign-in is refused and the app
+   never gets past "Loading…".
+
+**Variables, not secrets, and deliberately.** Every one of those six values is compiled into the
+JavaScript the workflow publishes, so anyone can read them out of the deployed bundle. A Firebase
+web config identifies a project; it does not authorise anything. What protects the data is
+`firebase/firestore.rules` and the authorized-domain list above. The service-account key in step 2
+is the one real secret here, and it never enters the bundle.
+
+Nothing else is needed to make a room link work: the `"source": "**"` rewrite in
+[`firebase.json`](firebase.json) hands every path to `index.html`, so `/room/JA7GLS` reaches the
+router with a 200 rather than a 404, and the app is served from a domain root — no build-time base
+path, and no `basename` on the router.
 
 ## Releases
 

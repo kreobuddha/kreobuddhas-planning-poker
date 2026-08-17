@@ -13,6 +13,11 @@ dist-ssr
 *.local
 .env
 
+# Service-account keys belong in GitHub Secrets and nowhere near a checkout. They are not kept
+# here in the first place; this is the net under that.
+*-firebase-adminsdk-*.json
+*service-account*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
