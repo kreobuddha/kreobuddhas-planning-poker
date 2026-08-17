@@ -1,6 +1,6 @@
 import './DeckPicker.scss';
 import type { ReactElement } from 'react';
-import clsx from 'clsx';
+import { FieldGroup, Radio } from '@kreobuddha/ui';
 import { CARD_DECKS } from '@/config';
 import type { DeckKey } from '@/config';
 
@@ -15,22 +15,24 @@ const DeckPicker = ({ value, disabled, onChange }: DeckPickerProps): ReactElemen
 
   return (
     <div className="deck-picker">
-      <h2 className="deck-picker__title">Card deck</h2>
-      <div className="deck-picker__options">
+      <FieldGroup
+        legend="Card deck"
+        orientation="horizontal"
+        hint={disabled ? 'Finish the current round to change the deck.' : undefined}
+        disabled={disabled}
+      >
         {keys.map((key) => (
-          <button
+          <Radio
             key={key}
-            type="button"
-            className={clsx('deck-picker__option', value === key && 'deck-picker__option--selected')}
-            disabled={disabled}
-            onClick={() => onChange(key)}
-          >
-            <span className="deck-picker__label">{CARD_DECKS[key].label}</span>
-            <span className="deck-picker__values">{CARD_DECKS[key].values.join(' · ')}</span>
-          </button>
+            name="deck"
+            value={key}
+            label={CARD_DECKS[key].label}
+            hint={CARD_DECKS[key].values.join(' · ')}
+            checked={value === key}
+            onChange={() => onChange(key)}
+          />
         ))}
-      </div>
-      {disabled && <p className="deck-picker__hint">Finish the current round to change the deck.</p>}
+      </FieldGroup>
     </div>
   );
 };
