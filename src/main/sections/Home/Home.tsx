@@ -5,7 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@kreobuddha/ui';
 import { generateSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
-import { useCreateSessionMutation, useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
+import {
+  useCreateSessionMutation,
+  useEnsureParticipantMutation,
+} from '@/main/sections/Home/endpoints/homeApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
 

@@ -68,7 +68,8 @@ export const isCollection = (url: string): boolean => segmentsOf(url).length % 2
 
 const docRef = (url: string) => doc(db, ...(segmentsOf(url) as [string, ...string[]]));
 
-const collectionRef = (url: string) => collection(db, ...(segmentsOf(url) as [string, ...string[]]));
+const collectionRef = (url: string) =>
+  collection(db, ...(segmentsOf(url) as [string, ...string[]]));
 
 export const resolveRef = (args: ReadWriteArgs): Query | ReturnType<typeof docRef> => {
   if (!isCollection(args.url)) return docRef(args.url);
@@ -154,7 +155,10 @@ const firebaseBaseQuery =
       // is fine, just empty" has a caller waiting on that distinction, and degrading to empty
       // would leave it loading forever instead of reporting anything.
       if (args.method !== 'BATCH' && args.streamed && args.notFound === undefined) {
-        console.warn(`[firebaseBaseQuery] initial read of ${args.url} failed; awaiting listener`, e);
+        console.warn(
+          `[firebaseBaseQuery] initial read of ${args.url} failed; awaiting listener`,
+          e
+        );
         return { data: emptyFor(args) };
       }
       return toQueryError(e, 'Request failed.');
