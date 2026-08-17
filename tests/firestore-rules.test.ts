@@ -119,7 +119,7 @@ describe('rounds', () => {
 });
 
 describe('votes', () => {
-  it('are readable by everyone in the session — hiding them is the UI\'s job', async () => {
+  it("are readable by everyone in the session — hiding them is the UI's job", async () => {
     await assertSucceeds(
       getDocs(collection(asUser(OUTSIDER), `${sessionPath}/rounds/${OPEN_ROUND}/votes`))
     );

@@ -42,8 +42,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     isLoading: sessionLoading,
   } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [], isLoading: participantsLoading } =
-    useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  const { data: participants = [], isLoading: participantsLoading } = useSubscribeParticipantsQuery(
+    session?.id ?? skipToken
+  );
   const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
   const { data: votes = [] } = useSubscribeVotesQuery(
     session && round ? { sessionId: session.id, roundId: round.id } : skipToken
@@ -186,9 +187,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         </aside>
 
         <main className="room__main">
-          {isAdmin && (
-            <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />
-          )}
+          {isAdmin && <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />}
 
           {isAdmin && (!round || round.revealed) && (
             <form onSubmit={handleAskQuestion} className="room__ask-form">
@@ -214,9 +213,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
                     disabled={casting || clearing}
                     onSelect={handleVote}
                   />
-                  {isAdmin && (
-                    <Button onClick={handleReveal}>Reveal cards</Button>
-                  )}
+                  {isAdmin && <Button onClick={handleReveal}>Reveal cards</Button>}
                 </>
               )}
 

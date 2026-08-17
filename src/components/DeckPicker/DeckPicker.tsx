@@ -21,7 +21,10 @@ const DeckPicker = ({ value, disabled, onChange }: DeckPickerProps): ReactElemen
           <button
             key={key}
             type="button"
-            className={clsx('deck-picker__option', value === key && 'deck-picker__option--selected')}
+            className={clsx(
+              'deck-picker__option',
+              value === key && 'deck-picker__option--selected'
+            )}
             disabled={disabled}
             onClick={() => onChange(key)}
           >
@@ -30,7 +33,9 @@ const DeckPicker = ({ value, disabled, onChange }: DeckPickerProps): ReactElemen
           </button>
         ))}
       </div>
-      {disabled && <p className="deck-picker__hint">Finish the current round to change the deck.</p>}
+      {disabled && (
+        <p className="deck-picker__hint">Finish the current round to change the deck.</p>
+      )}
     </div>
   );
 };

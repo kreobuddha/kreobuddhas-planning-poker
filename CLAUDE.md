@@ -65,14 +65,14 @@ REST projects this codebase's conventions come from. `src/store/firebaseBaseQuer
 fake backend that executes them against Firestore. The HTTP vocabulary is deliberate mimicry —
 Firestore never speaks HTTP — and it maps as:
 
-| Verb | Firestore | Target |
-|---|---|---|
-| `GET` (default) | `getDocs` / `getDoc` | collection or document |
-| `POST` | `addDoc`, resolves to `{ id }` | collection (server-assigned id) |
-| `PUT` | `setDoc` | document (full replace) |
-| `PATCH` | `updateDoc` | document (partial) |
-| `DELETE` | `deleteDoc` | document |
-| `BATCH` | `writeBatch` + `commit` | several documents, atomically |
+| Verb            | Firestore                      | Target                          |
+| --------------- | ------------------------------ | ------------------------------- |
+| `GET` (default) | `getDocs` / `getDoc`           | collection or document          |
+| `POST`          | `addDoc`, resolves to `{ id }` | collection (server-assigned id) |
+| `PUT`           | `setDoc`                       | document (full replace)         |
+| `PATCH`         | `updateDoc`                    | document (partial)              |
+| `DELETE`        | `deleteDoc`                    | document                        |
+| `BATCH`         | `writeBatch` + `commit`        | several documents, atomically   |
 
 Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
 collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
@@ -88,7 +88,7 @@ rejected write instead of a second team silently landing in the first team's roo
 
 Live data still needs `onCacheEntryAdded`, because `BaseQueryFn` resolves exactly once and has
 no channel for later values. `streamFrom` in `src/store/firestoreStream.ts` bridges the two: an
-endpoint names its descriptor builder once and passes it to *both* `query` and `streamFrom`, so
+endpoint names its descriptor builder once and passes it to _both_ `query` and `streamFrom`, so
 the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
 drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
 meaningful) and stay live after.
@@ -97,7 +97,7 @@ Two things to keep in mind when editing this layer:
 
 - **Paths are strings, so a typo is a runtime error, not a compile error.** This is the accepted
   cost of the indirection — same as `url` in the REST projects. Test path changes in the browser.
-- `src/auth/store/authApi.ts` stays on `queryFn`: `signInAnonymously` is Firebase *Auth*, not
+- `src/auth/store/authApi.ts` stays on `queryFn`: `signInAnonymously` is Firebase _Auth_, not
   Firestore, so it can't route through this baseQuery. This mirrors the REST projects, where
   `authApi` is its own `createApi`.
 
@@ -143,7 +143,7 @@ instead of relative paths). Beyond those:
   collection list as a whole — it can't hand back a filtered subset, so "list who voted" and
   "hide what they voted" can't both come from rules without a second collection (there used
   to be a parallel `voteStatus` one; it was removed deliberately). A participant can read
-  values from the network tab. Rules still enforce the parts that *are* enforceable: you can
+  values from the network tab. Rules still enforce the parts that _are_ enforceable: you can
   only write your own vote, and only while the round is open, so a revealed result can't be
   rewritten.
 - Security rules live in `firebase/firestore.rules`. Before deploying a rules change, check it
