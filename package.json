@@ -1,13 +1,14 @@
 {
   "name": "kreobuddhas-planning-poker",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview": "vite preview",
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/*.test.ts\""
   },

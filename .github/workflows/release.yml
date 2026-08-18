@@ -1,0 +1,80 @@
+name: Release
+
+# A release here is a tag and a GitHub release — nothing is published to a registry, because this
+# app is not a package. The run is started by hand and told which version it is cutting, so a merge
+# to master can never tag on its own.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version being released, e.g. 0.1.0 — must match package.json'
+        required: true
+        type: string
+
+permissions:
+  # The tag and the GitHub release are created by this run rather than by hand afterwards.
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
+      # The gate the app actually has. There is no UI test suite here by decision, so a release
+      # proves what lint and a real build can prove and claims nothing more. The Firestore rules
+      # suite is not run: it needs the emulator and a JDK, and no rule change can reach a tag
+      # without going through a pull request that ran it.
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+
+      # Tagging the wrong version is recoverable and confusing; tagging a version the manifest does
+      # not claim is just wrong. The operator's input reaches the shell through the environment,
+      # never expanded into the script body: an expanded `${{ }}` is text spliced into the program
+      # before the shell sees it, which is how a workflow input becomes a command.
+      - name: Verify the version matches package.json
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          MANIFEST_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$MANIFEST_VERSION" != "$VERSION" ]; then
+            echo "package.json is $MANIFEST_VERSION but the run requested $VERSION" >&2
+            exit 1
+          fi
+
+      # Read before tagging, so a missing or empty changelog section stops the run while stopping
+      # is still free.
+      - name: Collect the release notes
+        env:
+          VERSION: ${{ inputs.version }}
+        run: node scripts/release-notes.mjs "$VERSION" > /tmp/release-notes.md
+
+      - name: Tag the released commit
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file /tmp/release-notes.md \
+            --verify-tag
