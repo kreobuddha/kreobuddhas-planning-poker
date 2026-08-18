@@ -7,6 +7,22 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-18
+
+The interface is now built out of [`@kreobuddha/ui`](https://github.com/kreobuddha/kreobuddha-ui)
+instead of hand-rolled markup, and the library moved from `0.3.0` to `0.19.0` along the way.
+
+### Changed
+
+- **Home, Room and the deck picker are built from the library's components.** Text inputs are
+  `TextField`, errors are `Alert`, the vote-status pill is `Badge`, the loading state is `Spinner`,
+  and the deck picker is a `FieldGroup` of `Radio`s rather than a row of buttons — so the deck
+  choice now behaves like the radio group it always was, keyboard included.
+- **"Copy room link" reports through a toast** from the library's `ToastProvider`, replacing the
+  component's own transient message.
+- Local styling shrank accordingly: colour, type and shape come from the library's token layer, and
+  roughly 80 lines of component SCSS went away with the markup they described.
+
 ## [0.1.0] — 2026-08-17
 
 The first tagged version. Everything below already worked; what is new is that there is now a
