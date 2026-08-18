@@ -2,7 +2,7 @@ import './Home.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@kreobuddha/ui';
+import { Alert, Button, TextField } from '@kreobuddha/ui';
 import { generateSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
 import {
@@ -21,7 +21,10 @@ const Home = ({ userId }: HomeProps): ReactElement => {
   const [name, setName] = useState(readStoredName);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // One flag per action, not one for the screen: a shared flag put a spinner in both buttons at
+  // once, so pressing "Create session" also claimed that joining was in flight.
+  const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   const [createSession] = useCreateSessionMutation();
   const [ensureParticipant] = useEnsureParticipantMutation();
@@ -33,7 +36,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
       setError('Enter your name first.');
       return;
     }
-    setBusy(true);
+    setCreating(true);
     setError(null);
     try {
       const code = generateSessionCode();
@@ -43,7 +46,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     } catch (err) {
       setError(errorMessage(err, 'Could not create session.'));
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   };
 
@@ -53,7 +56,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
       setError('Enter your name and a session code.');
       return;
     }
-    setBusy(true);
+    setJoining(true);
     setError(null);
     try {
       const code = joinCode.trim().toUpperCase();
@@ -64,7 +67,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     } catch (err) {
       setError(errorMessage(err, 'Could not join session.'));
     } finally {
-      setBusy(false);
+      setJoining(false);
     }
   };
 
@@ -73,36 +76,49 @@ const Home = ({ userId }: HomeProps): ReactElement => {
       <h1>Planning Poker</h1>
       <p className="home__subtitle">Estimate together, in person-days.</p>
 
-      <input
-        className="home__name-input"
-        placeholder="Your name"
+      <TextField
+        className="home__name-field"
+        label="Your name"
+        hint="Everyone in the room sees this."
         value={name}
         onChange={(e) => setName(e.target.value)}
+        fullWidth
       />
 
       <div className="home__actions">
         <form onSubmit={handleCreate} className="home__card">
           <h2>Start a session</h2>
           <p>Create a new room and share the code with your team.</p>
-          <Button type="submit" loading={busy}>
+          <Button type="submit" loading={creating}>
             Create session
           </Button>
         </form>
 
         <form onSubmit={handleJoin} className="home__card">
           <h2>Join a session</h2>
-          <input
-            placeholder="Session code"
+          <TextField
+            label="Session code"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)}
+            fullWidth
           />
-          <Button type="submit" variant="outlined" loading={busy}>
+          <Button type="submit" variant="outlined" loading={joining}>
             Join
           </Button>
         </form>
       </div>
 
-      {error && <p className="home__error">{error}</p>}
+      {error && (
+        <Alert
+          className="home__error"
+          tone="danger"
+          live
+          onDismiss={() => setError(null)}
+          dismissLabel="Dismiss this message"
+        >
+          {error}
+        </Alert>
+      )}
     </div>
   );
 };

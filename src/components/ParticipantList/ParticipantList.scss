@@ -11,23 +11,25 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   font-size: 0.9rem;
+
+  // A badge is one word and must never be broken across lines by a narrow sidebar. The name is
+  // the only part allowed to give up space, and it truncates rather than wrapping.
+  > * {
+    flex: 0 0 auto;
+  }
 }
 
-.participant-list__badge {
-  font-size: 0.65rem;
-  color: var(--kreo-accent-500);
-  border: 1px solid var(--kreo-accent-500);
-  border-radius: var(--kreo-radius-sm);
-  padding: 0.05rem 0.35rem;
-  margin-left: 0.4rem;
-}
+// The two badges bring their own type, colour and shape; the name only has to sit beside one.
+.participant-list__name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 1 auto;
+  min-width: 0;
 
-.participant-list__status {
-  font-size: 0.75rem;
-  color: var(--kreo-text-muted);
-
-  &--voted {
-    color: var(--kreo-success-500);
+  > * {
+    flex: 0 0 auto;
   }
 }
