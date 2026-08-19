@@ -3,10 +3,26 @@ import type { DocumentReference, DocumentSnapshot, Query, QuerySnapshot } from '
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
 import { applySelect, effectiveSelect, isCollection, resolveRef } from '@/store/firebaseBaseQuery';
 
+// Narrowed to "takes a thunk": this dispatch only ever forwards an endpoint's own upsert thunk,
+// and spelling out the store state here would tie the store layer to every api that uses it.
+type StreamDispatch = (thunk: (...args: never[]) => unknown) => unknown;
+
+// Seeds a cache entry that holds no data. `updateCachedData` is a `produce` over existing data
+// and a no-op on an entry that has none, so without this a failed initial read could never be
+// repaired: the listener would keep receiving snapshots and silently drop them. That matters
+// beyond a lost network — Firestore's latency compensation flips a local value (e.g.
+// `round.revealed`) before the server commits, so the revealing client can out-run its own write
+// against a rule that reads the server state and have a read denied for an instant.
+//
+// Endpoints pass their own `api.util.upsertQueryData(name, arg, value)` because only they know
+// the endpoint name as the literal type that call requires.
+export type Upsert<A, T> = (dispatch: StreamDispatch, arg: A, value: T) => void;
+
 // The slice of RTK Query's cache-lifecycle api this helper needs.
 interface StreamApi<T> {
   updateCachedData: (recipe: () => T) => unknown;
-  cacheDataLoaded: Promise<unknown>;
+  getCacheEntry: () => { data?: T };
+  dispatch: StreamDispatch;
   cacheEntryRemoved: Promise<unknown>;
 }
 
@@ -14,18 +30,20 @@ interface StreamApi<T> {
 // streamed shape always matches the fetched one. Subscriptions can't live in baseQuery —
 // BaseQueryFn resolves once and has no channel for later values.
 export const streamFrom =
-  <A, T>(toArgs: (arg: A) => ReadWriteArgs) =>
+  <A, T>(toArgs: (arg: A) => ReadWriteArgs, upsert: Upsert<A, T>) =>
   async (
     arg: A,
-    { updateCachedData, cacheDataLoaded, cacheEntryRemoved }: StreamApi<T>
+    { updateCachedData, getCacheEntry, dispatch, cacheEntryRemoved }: StreamApi<T>
   ): Promise<void> => {
-    // Rejects if the entry is dropped before the initial read resolves; attaching anyway is
-    // harmless because `cacheEntryRemoved` will then already be settled.
-    await cacheDataLoaded.catch(() => undefined);
-
+    // Deliberately not awaiting `cacheDataLoaded` first: RTK settles it only when data lands or
+    // the entry is dropped, so a read that failed leaves it pending forever — and that is exactly
+    // the entry the listener has to repair. Whichever of the two arrives first wins; the other
+    // overwrites it moments later with a read of the same collection.
     const args = toArgs(arg);
     const push = (snap: QuerySnapshot | DocumentSnapshot): void => {
-      updateCachedData(() => applySelect(snap, effectiveSelect(args)) as T);
+      const next = applySelect(snap, effectiveSelect(args)) as T;
+      if (getCacheEntry().data === undefined) upsert(dispatch, arg, next);
+      else updateCachedData(() => next);
     };
 
     // Without this handler a denied or dropped listener fails silently, and the cache entry

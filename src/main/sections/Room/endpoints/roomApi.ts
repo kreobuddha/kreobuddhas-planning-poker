@@ -13,44 +13,60 @@ interface RoundArg {
 type MyVoteArg = RoundArg & { userId: string };
 
 // Each subscription names its descriptor once, then feeds it to both `query` (initial fetch)
-// and `streamFrom` (live updates), so the two can't drift apart. `streamed` marks the listener
-// as the source of truth — see the note in firebaseBaseQuery.
+// and `streamFrom` (live updates), so the two can't drift apart.
+//
+// `joinedAt` is a pending serverTimestamp() locally, which reads back as null and sorts first
+// under `asc`, so a participant briefly sits at the top of the list before settling at the
+// bottom. That beats an unordered list that reshuffles on every snapshot.
 const participantsUrl = (sessionId: string): ReadWriteArgs => ({
   url: `/sessions/${sessionId}/participants`,
-  streamed: true,
+  params: { orderBy: [['joinedAt', 'asc']] },
 });
 
-// Ordered by a client clock rather than serverTimestamp(): a pending serverTimestamp() reads
-// back as null locally, and null sorts last under `desc`, so the admin who just started a round
-// would keep seeing the previous one until the server acknowledged the write. Only the admin
-// writes rounds within a session, so one clock orders them all.
-const latestRoundUrl = (sessionId: string): ReadWriteArgs => ({
+// The whole history, newest first: the head is the round being played, the tail is what
+// RoundHistory shows. Ordered by a client clock rather than serverTimestamp(): a pending
+// serverTimestamp() reads back as null locally, and null sorts last under `desc`, so the admin
+// who just started a round would keep seeing the previous one until the server acknowledged the
+// write. Only the admin writes rounds within a session, so one clock orders them all.
+const roundsUrl = (sessionId: string): ReadWriteArgs => ({
   url: `/sessions/${sessionId}/rounds`,
-  params: { orderBy: [['createdAt', 'desc']], limit: 1 },
-  select: 'first',
-  streamed: true,
+  params: { orderBy: [['createdAt', 'desc']] },
 });
 
 const votesUrl = ({ sessionId, roundId }: RoundArg): ReadWriteArgs => ({
   url: `/sessions/${sessionId}/rounds/${roundId}/votes`,
-  streamed: true,
 });
 
 export const roomApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
     subscribeParticipants: builder.query<IParticipant[], string>({
       query: participantsUrl,
-      onCacheEntryAdded: streamFrom<string, IParticipant[]>(participantsUrl),
+      onCacheEntryAdded: streamFrom<string, IParticipant[]>(
+        participantsUrl,
+        (dispatch, sessionId, value) => {
+          dispatch(roomApi.util.upsertQueryData('subscribeParticipants', sessionId, value));
+        }
+      ),
     }),
 
-    subscribeLatestRound: builder.query<IRound | null, string>({
-      query: latestRoundUrl,
-      onCacheEntryAdded: streamFrom<string, IRound | null>(latestRoundUrl),
+    subscribeRounds: builder.query<IRound[], string>({
+      query: roundsUrl,
+      onCacheEntryAdded: streamFrom<string, IRound[]>(roundsUrl, (dispatch, sessionId, value) => {
+        dispatch(roomApi.util.upsertQueryData('subscribeRounds', sessionId, value));
+      }),
     }),
 
     subscribeVotes: builder.query<IVote[], RoundArg>({
       query: votesUrl,
-      onCacheEntryAdded: streamFrom<RoundArg, IVote[]>(votesUrl),
+      onCacheEntryAdded: streamFrom<RoundArg, IVote[]>(votesUrl, (dispatch, arg, value) => {
+        dispatch(roomApi.util.upsertQueryData('subscribeVotes', arg, value));
+      }),
+    }),
+
+    // Past rounds are settled, so history reads them once instead of holding a listener open
+    // per row.
+    fetchRoundVotes: builder.query<IVote[], RoundArg>({
+      query: votesUrl,
     }),
 
     askQuestion: builder.mutation<{ id: string }, { sessionId: string; question: string }>({
@@ -108,8 +124,9 @@ export const roomApi = emptyApi.injectEndpoints({
 
 export const {
   useSubscribeParticipantsQuery,
-  useSubscribeLatestRoundQuery,
+  useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
+  useFetchRoundVotesQuery,
   useAskQuestionMutation,
   useCastVoteMutation,
   useClearVoteMutation,

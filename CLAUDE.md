@@ -81,11 +81,11 @@ Firestore never speaks HTTP — and it maps as:
 
 Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
 collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
-`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`,
-`'ids'`); `effectiveSelect` resolves it once so the fetch and the stream can't reduce the same
-snapshot differently. `notFound` turns a read that found nothing into an error, which is how
-`findSessionByCode` reports a bad code — and it also opts the endpoint out of the
-degrade-to-empty behaviour `streamed` otherwise applies to a failed initial read.
+`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`);
+`effectiveSelect` resolves it once so the fetch and the stream can't reduce the same snapshot
+differently. `notFound` turns a read that found nothing into an error, which is how
+`findSessionByCode` reports a bad code. A read that fails always reports the failure — an empty
+room and an unreadable one must not look alike to the UI.
 
 A session's join code IS its document id (`sessions/{CODE}`), so a room is reached with a `get`.
 That's what lets the rules deny `list` on `/sessions` outright, and it makes a code collision a
@@ -97,6 +97,12 @@ endpoint names its descriptor builder once and passes it to _both_ `query` and `
 the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
 drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
 meaningful) and stay live after.
+
+A subscribed endpoint also passes `streamFrom` its own
+`api.util.upsertQueryData(name, arg, value)` — the second argument. `updateCachedData` is a
+`produce` over existing data and a no-op on an entry that has none, so an entry whose initial
+read failed can only be repaired by upserting the first snapshot that arrives. That is what
+lets the room come back on its own after a lost connection instead of sitting on an error.
 
 Two things to keep in mind when editing this layer:
 
