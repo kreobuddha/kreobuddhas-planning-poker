@@ -9,6 +9,16 @@ not when an API does, because there is no public API here.
 
 ### Added
 
+- **A "?" card.** Not every question can be sized, and until now the only way to say so was to
+  not vote at all — which reads as "not here yet". "?" is a vote: it is cast, it clears, and it
+  is left out of the average and the spread, with its author named in the results as not counted
+  towards the estimate. It sits after the deck rather than inside it, so no deck gained a value.
+- **The spread beside the average.** A room that voted 1 and 13 and a room that voted 7 twice
+  averaged the same and read the same. The results now show the lowest and highest estimate
+  alongside the average.
+- **Who did not vote, after the reveal.** The revealed cards can only show the people who voted,
+  so a silence looked like agreement. Everyone with no vote now gets a card of their own in the
+  results and keeps a status badge in the participant list.
 - **Reopening a round.** After a reveal the admin can put the same question back to the table:
   the cards come back, every vote already cast is still there, and anyone can change their mind.
   Previously a revealed round was final and the only way on was a new question.

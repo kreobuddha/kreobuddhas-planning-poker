@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { Alert, Spinner, useToast } from '@kreobuddha/ui';
 import { CARD_DECKS, deckKeyOf } from '@/config';
-import type { DeckKey } from '@/config';
+import type { CardValue, DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
@@ -90,7 +90,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   };
 
   // Picking the card you already hold clears the vote, which is the only way back to "waiting".
-  const handleVote = async (value: number): Promise<void> => {
+  const handleVote = async (value: CardValue): Promise<void> => {
     if (!session || !round || !me) return;
     const target = { sessionId: session.id, roundId: round.id, userId };
     try {

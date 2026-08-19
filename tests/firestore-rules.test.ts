@@ -263,6 +263,28 @@ describe('votes', () => {
     );
   });
 
+  // '?' is the one value the rules accept that belongs to no deck, so it has to be spelled out
+  // here: nothing else about the vote rules would catch it turning into "any string will do".
+  it("take '?' whatever the deck is, and no other string", async () => {
+    const db = asUser(MEMBER);
+    await assertSucceeds(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '?', createdAt: Date.now() })
+    );
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '??', createdAt: Date.now() })
+    );
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '5', createdAt: Date.now() })
+    );
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: '?', createdAt: Date.now() })
+    );
+    // And it is frozen with everything else once the cards are on the table.
+    await assertFails(
+      setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: '?', createdAt: Date.now() })
+    );
+  });
+
   it('can be cleared while the round is open', async () => {
     const db = asUser(MEMBER);
     await assertSucceeds(

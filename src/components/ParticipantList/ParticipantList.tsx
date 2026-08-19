@@ -24,8 +24,16 @@ const ParticipantList = ({
             {p.name}
             {p.id === adminId && <Badge tone="accent">admin</Badge>}
           </span>
-          {/* Once the votes are revealed, who voted stops being news — the cards say it. */}
-          {!revealed && (
+          {/* Once the cards are on the table they say who voted, so the badge drops away — but
+              only for those who did. A silent participant is exactly what the revealed cards
+              cannot show, so that one stays. */}
+          {revealed ? (
+            !votedIds.has(p.id) && (
+              <Badge tone="warning" dot>
+                no vote
+              </Badge>
+            )
+          ) : (
             <Badge tone={votedIds.has(p.id) ? 'success' : 'neutral'} dot>
               {votedIds.has(p.id) ? 'voted' : 'waiting'}
             </Badge>
