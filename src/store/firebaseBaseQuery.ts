@@ -85,7 +85,7 @@ const toEntity = (snap: { id: string; data: () => DocumentData | undefined }): D
 });
 
 // `single` implies 'first'. Shared so the initial fetch and the live stream reduce a snapshot
-// identically — otherwise a `single` + `streamed` endpoint would fetch one object and then
+// identically — otherwise a `single` subscribed endpoint would fetch one object and then
 // stream an array over it.
 export const effectiveSelect = (args: ReadWriteArgs): Select =>
   args.select ?? (args.single ? 'first' : 'array');
