@@ -1,4 +1,5 @@
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { SESSION_TTL_MS } from '@/config';
 import type { CardValue, DeckKey } from '@/config';
 import type { IParticipant, IRound, IVote } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
@@ -100,6 +101,34 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
+    // Extending is always measured from now, never from the old deadline: a room that is
+    // still being used keeps earning more time, while an abandoned one runs out on schedule.
+    extendSession: builder.mutation<void, string>({
+      query: (sessionId) => ({
+        url: `/sessions/${sessionId}`,
+        method: 'PATCH',
+        data: { expiresAt: Timestamp.fromMillis(Date.now() + SESSION_TTL_MS) },
+      }),
+    }),
+
+    // Closing is expiring, brought forward. One state instead of two means neither the rules
+    // nor the room has to learn a second flag.
+    closeSession: builder.mutation<void, string>({
+      query: (sessionId) => ({
+        url: `/sessions/${sessionId}`,
+        method: 'PATCH',
+        data: { expiresAt: Timestamp.now() },
+      }),
+    }),
+
+    transferAdmin: builder.mutation<void, { sessionId: string; userId: string }>({
+      query: ({ sessionId, userId }) => ({
+        url: `/sessions/${sessionId}`,
+        method: 'PATCH',
+        data: { adminId: userId },
+      }),
+    }),
+
     revealVotes: builder.mutation<void, RoundArg>({
       query: ({ sessionId, roundId }) => ({
         url: `/sessions/${sessionId}/rounds/${roundId}`,
@@ -131,6 +160,9 @@ export const {
   useCastVoteMutation,
   useClearVoteMutation,
   useSetDeckMutation,
+  useExtendSessionMutation,
+  useCloseSessionMutation,
+  useTransferAdminMutation,
   useRevealVotesMutation,
   useReopenRoundMutation,
 } = roomApi;

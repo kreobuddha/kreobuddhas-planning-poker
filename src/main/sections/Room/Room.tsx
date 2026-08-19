@@ -1,5 +1,5 @@
 import './Room.scss';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
@@ -16,10 +16,13 @@ import {
   useClearVoteMutation,
   useReopenRoundMutation,
   useRevealVotesMutation,
+  useCloseSessionMutation,
+  useExtendSessionMutation,
   useSetDeckMutation,
   useSubscribeParticipantsQuery,
   useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
+  useTransferAdminMutation,
 } from '@/main/sections/Room/endpoints/roomApi';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
 import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
@@ -27,6 +30,7 @@ import RoomSidebar from '@/main/sections/Room/components/RoomSidebar/RoomSidebar
 import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
 import RoundPanel from '@/main/sections/Room/components/RoundPanel/RoundPanel';
+import SessionDeadline from '@/main/sections/Room/components/SessionDeadline/SessionDeadline';
 
 interface RoomProps {
   userId: string;
@@ -69,6 +73,18 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [reopenRound, { isLoading: reopening }] = useReopenRoundMutation();
   const [setDeck, { isLoading: settingDeck }] = useSetDeckMutation();
   const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
+  const [extendSession, { isLoading: extending }] = useExtendSessionMutation();
+  const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
+  const [transferAdmin, { isLoading: handingOver }] = useTransferAdminMutation();
+
+  // A deadline passes on its own, and nothing is written when it does — so this is the one piece
+  // of room state that no snapshot will ever deliver. The tick only forces the comparison below
+  // to be made again; the deadline itself lives in the session document.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 5_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
@@ -122,6 +138,33 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
+  const handleExtend = async (): Promise<void> => {
+    if (!session) return;
+    try {
+      await extendSession(session.id).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not extend this room.');
+    }
+  };
+
+  const handleCloseRoom = async (): Promise<void> => {
+    if (!session) return;
+    try {
+      await closeSession(session.id).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not close this room.');
+    }
+  };
+
+  const handleMakeAdmin = async (nextAdminId: string): Promise<void> => {
+    if (!session) return;
+    try {
+      await transferAdmin({ sessionId: session.id, userId: nextAdminId }).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not hand the room over.');
+    }
+  };
+
   const handleDeckChange = async (next: DeckKey): Promise<void> => {
     if (!session) return;
     try {
@@ -164,6 +207,20 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     );
   }
 
+  // An expired room is readable but not writable, so it says so instead of letting people vote
+  // into permission errors. Closing the room is the same state reached deliberately, which is why
+  // there is no second wording for it.
+  if (session.expiresAt !== undefined && Date.now() >= session.expiresAt) {
+    return (
+      <div className="room__error">
+        <Alert tone="info" title="This room has closed">
+          Sessions stay open for a few hours. The questions and the votes already cast are still
+          here to read, but nothing more can be written.
+        </Alert>
+      </div>
+    );
+  }
+
   // Three distinct states, and they must stay distinct: while the list is still arriving the room
   // renders with a placeholder sidebar, an unreadable list says so, and only a list that loaded
   // and does not hold the reader means "you are not in this room yet". Offering the join form on
@@ -201,11 +258,23 @@ const Room = ({ userId }: RoomProps): ReactElement => {
           revealed={round?.revealed ?? false}
           adminId={session.adminId}
           loading={participantsLoading}
+          onMakeAdmin={isAdmin ? handleMakeAdmin : undefined}
+          handingOver={handingOver}
           sessionId={session.id}
           pastRounds={rounds.slice(1)}
         />
 
         <main className="room__main">
+          {isAdmin && session.expiresAt !== undefined && (
+            <SessionDeadline
+              expiresAt={session.expiresAt}
+              extending={extending}
+              closing={closing}
+              onExtend={handleExtend}
+              onClose={handleCloseRoom}
+            />
+          )}
+
           {isAdmin && (
             <DeckPicker
               value={deck}

@@ -1,6 +1,6 @@
 import './ParticipantList.scss';
 import type { ReactElement } from 'react';
-import { Badge } from '@kreobuddha/ui';
+import { Badge, Button } from '@kreobuddha/ui';
 import type { IParticipant } from '@/types';
 
 interface ParticipantListProps {
@@ -8,6 +8,9 @@ interface ParticipantListProps {
   votedIds: Set<string>;
   revealed: boolean;
   adminId: string;
+  /** Absent for everyone but the admin, which is what hides the handover control. */
+  onMakeAdmin?: (userId: string) => void;
+  handingOver?: boolean;
 }
 
 const ParticipantList = ({
@@ -15,6 +18,8 @@ const ParticipantList = ({
   votedIds,
   revealed,
   adminId,
+  onMakeAdmin,
+  handingOver = false,
 }: ParticipantListProps): ReactElement => {
   return (
     <ul className="participant-list">
@@ -37,6 +42,18 @@ const ParticipantList = ({
             <Badge tone={votedIds.has(p.id) ? 'success' : 'neutral'} dot>
               {votedIds.has(p.id) ? 'voted' : 'waiting'}
             </Badge>
+          )}
+          {/* Handing the room over is the only way back from an admin who closed their laptop,
+              so it sits next to the person rather than behind a menu. */}
+          {onMakeAdmin && p.id !== adminId && (
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={handingOver}
+              onClick={() => onMakeAdmin(p.id)}
+            >
+              Make admin
+            </Button>
           )}
         </li>
       ))}

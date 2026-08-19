@@ -29,3 +29,17 @@ export const deckKeyOf = (deck: string | undefined): DeckKey =>
 // was one character too long.
 export const NAME_MAX_LENGTH = 40;
 export const QUESTION_MAX_LENGTH = 200;
+
+// A room is a meeting, not a document: it stays writable for a working session and then stops,
+// so an abandoned room can't be voted in a month later. The admin can push the deadline back
+// while the room is still live.
+//
+// SESSION_MAX_EXTENSION_MS is the ceiling the rules enforce, and it is deliberately separate
+// from SESSION_TTL_MS: a short lifetime in development needs no rule change, because the rules
+// only cap how far ahead a deadline may be set, never how close.
+export const SESSION_MAX_EXTENSION_MS = 6 * 60 * 60 * 1000;
+
+export const SESSION_TTL_MS = import.meta.env.DEV ? 5 * 60 * 1000 : SESSION_MAX_EXTENSION_MS;
+
+// Proportional to the lifetime, or the warning would never be reachable in development.
+export const SESSION_EXPIRY_WARNING_MS = import.meta.env.DEV ? 60 * 1000 : 15 * 60 * 1000;
