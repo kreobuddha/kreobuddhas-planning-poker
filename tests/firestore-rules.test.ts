@@ -6,7 +6,16 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  Timestamp,
+  updateDoc,
+} from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
 // The rules are the only server-side boundary this app has, and they can't be exercised from
@@ -24,6 +33,17 @@ const OPEN_ROUND = 'round-open';
 const REVEALED_ROUND = 'round-revealed';
 
 const sessionPath = `sessions/${CODE}`;
+
+// A room whose deadline has already passed, and one used only for handing the admin role over —
+// both separate from the main fixture, because either behaviour changes the room permanently and
+// would leak into every test that follows.
+const EXPIRED_CODE = 'GONE01';
+const expiredSessionPath = `sessions/${EXPIRED_CODE}`;
+const HANDOVER_CODE = 'HAND01';
+const handoverSessionPath = `sessions/${HANDOVER_CODE}`;
+
+const hoursFromNow = (hours: number): Timestamp =>
+  Timestamp.fromMillis(Date.now() + hours * 60 * 60 * 1000);
 // A second room, with a different admin, purely to ask whether standing in one gives you
 // anything in the other.
 const OTHER_CODE = 'XYZ789';
@@ -56,6 +76,34 @@ before(async () => {
       adminId: ADMIN,
       deck: 'modified',
       createdAt: Date.now(),
+      expiresAt: hoursFromNow(3),
+    });
+    await setDoc(doc(db, expiredSessionPath), {
+      code: EXPIRED_CODE,
+      adminId: ADMIN,
+      deck: 'modified',
+      createdAt: Date.now(),
+      expiresAt: hoursFromNow(-1),
+    });
+    await setDoc(doc(db, `${expiredSessionPath}/participants/${MEMBER}`), {
+      name: 'Member',
+      joinedAt: Date.now(),
+    });
+    await setDoc(doc(db, `${expiredSessionPath}/rounds/${OPEN_ROUND}`), {
+      question: 'Asked before the room closed',
+      revealed: false,
+      createdAt: Date.now(),
+    });
+    await setDoc(doc(db, handoverSessionPath), {
+      code: HANDOVER_CODE,
+      adminId: ADMIN,
+      deck: 'modified',
+      createdAt: Date.now(),
+      expiresAt: hoursFromNow(3),
+    });
+    await setDoc(doc(db, `${handoverSessionPath}/participants/${MEMBER}`), {
+      name: 'Member',
+      joinedAt: Date.now(),
     });
     await setDoc(doc(db, otherSessionPath), {
       code: OTHER_CODE,
@@ -99,7 +147,13 @@ describe('sessions', () => {
 
   it('can only be created under its own code, by its own admin', async () => {
     const db = asUser(ADMIN);
-    const valid = { code: 'NEWONE', adminId: ADMIN, deck: 'modified', createdAt: Date.now() };
+    const valid = {
+      code: 'NEWONE',
+      adminId: ADMIN,
+      deck: 'modified',
+      createdAt: Date.now(),
+      expiresAt: hoursFromNow(3),
+    };
     await assertSucceeds(setDoc(doc(db, 'sessions/NEWONE'), valid));
     await assertFails(setDoc(doc(db, 'sessions/OTHER1'), valid));
     await assertFails(
@@ -119,9 +173,14 @@ describe('sessions', () => {
 
   it('rejects a create carrying a field the model does not have', async () => {
     const db = asUser(ADMIN);
-    const base = { adminId: ADMIN, deck: 'modified', createdAt: Date.now() };
+    const base = {
+      adminId: ADMIN,
+      deck: 'modified',
+      createdAt: Date.now(),
+      expiresAt: hoursFromNow(3),
+    };
     await assertFails(
-      setDoc(doc(db, 'sessions/EXTRA1'), { ...base, code: 'EXTRA1', expiresAt: Date.now() })
+      setDoc(doc(db, 'sessions/EXTRA1'), { ...base, code: 'EXTRA1', secret: 'nope' })
     );
     // Not a `hasOnly` failure but the mirror of one: a subset is allowed by `hasOnly`, so what
     // catches a missing deck is the deck check itself.
@@ -147,6 +206,91 @@ describe('sessions', () => {
     // back by the vote rules.
     await assertSucceeds(updateDoc(doc(asUser(OUTSIDER), otherSessionPath), { deck: 'powers' }));
     await assertSucceeds(updateDoc(doc(asUser(OUTSIDER), otherSessionPath), { deck: 'fibonacci' }));
+  });
+});
+
+describe('session lifetime', () => {
+  it('requires a deadline, and one no further ahead than the ceiling', async () => {
+    const db = asUser(ADMIN);
+    const base = { adminId: ADMIN, deck: 'modified', createdAt: Date.now() };
+    await assertFails(setDoc(doc(db, 'sessions/NODATE'), { ...base, code: 'NODATE' }));
+    await assertFails(
+      setDoc(doc(db, 'sessions/TOOFAR'), {
+        ...base,
+        code: 'TOOFAR',
+        expiresAt: hoursFromNow(24),
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, 'sessions/PASTED'), {
+        ...base,
+        code: 'PASTED',
+        expiresAt: hoursFromNow(-1),
+      })
+    );
+  });
+
+  it('is extended by its admin, within the ceiling, and by nobody else', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asUser(ADMIN), sessionPath), { expiresAt: hoursFromNow(4) })
+    );
+    await assertFails(updateDoc(doc(asUser(ADMIN), sessionPath), { expiresAt: hoursFromNow(24) }));
+    await assertFails(updateDoc(doc(asUser(MEMBER), sessionPath), { expiresAt: hoursFromNow(4) }));
+
+    // The deadline is read by every write rule below, so leave the room comfortably open.
+    await assertSucceeds(
+      updateDoc(doc(asUser(ADMIN), sessionPath), { expiresAt: hoursFromNow(3) })
+    );
+  });
+
+  it('stops accepting writes once the deadline has passed, but stays readable', async () => {
+    const admin = asUser(ADMIN);
+    const member = asUser(MEMBER);
+
+    await assertSucceeds(getDoc(doc(member, expiredSessionPath)));
+    await assertSucceeds(getDocs(collection(member, `${expiredSessionPath}/rounds`)));
+
+    await assertFails(
+      setDoc(doc(member, `${expiredSessionPath}/participants/${MEMBER}`), {
+        name: 'Member',
+        joinedAt: Date.now(),
+      })
+    );
+    await assertFails(
+      setDoc(doc(admin, `${expiredSessionPath}/rounds/late`), {
+        question: 'Too late',
+        revealed: false,
+        createdAt: Date.now(),
+      })
+    );
+    await assertFails(
+      setDoc(doc(member, `${expiredSessionPath}/rounds/${OPEN_ROUND}/votes/${MEMBER}`), {
+        value: 5,
+        createdAt: Date.now(),
+      })
+    );
+  });
+
+  it('cannot be revived once it has expired', async () => {
+    await assertFails(
+      updateDoc(doc(asUser(ADMIN), expiredSessionPath), { expiresAt: hoursFromNow(3) })
+    );
+    await assertFails(updateDoc(doc(asUser(ADMIN), expiredSessionPath), { deck: 'powers' }));
+  });
+});
+
+describe('admin handover', () => {
+  it('refuses a handover to somebody who never joined, and from somebody who is not the admin', async () => {
+    await assertFails(updateDoc(doc(asUser(ADMIN), handoverSessionPath), { adminId: STRANGER }));
+    await assertFails(updateDoc(doc(asUser(MEMBER), handoverSessionPath), { adminId: MEMBER }));
+  });
+
+  it('hands the room to a participant, and takes it away from the previous admin', async () => {
+    await assertSucceeds(updateDoc(doc(asUser(ADMIN), handoverSessionPath), { adminId: MEMBER }));
+
+    // The room is the new admin's now: the old one keeps nothing.
+    await assertFails(updateDoc(doc(asUser(ADMIN), handoverSessionPath), { deck: 'powers' }));
+    await assertSucceeds(updateDoc(doc(asUser(MEMBER), handoverSessionPath), { deck: 'powers' }));
   });
 });
 

@@ -9,6 +9,21 @@ not when an API does, because there is no public API here.
 
 ### Added
 
+- **Rooms have a lifetime.** A session now carries a deadline and stops accepting writes once it
+  passes: an abandoned room can no longer be voted in a month later. The admin is warned before
+  the deadline and can push it back while the room is live, always measured from the moment of
+  extending — a room in use keeps earning time, a forgotten one runs out on schedule. The rules
+  cap how far ahead a deadline may be set, never how close, so a development build can create
+  five-minute rooms without a rule change.
+- **"Close room".** The same state, reached deliberately: closing brings the deadline forward to
+  now, behind a confirmation. Closing and expiring are deliberately one state rather than two, so
+  neither the rules nor the room has to carry a second flag. What was asked and what was voted
+  stays readable afterwards.
+- **Handing the room over.** The admin can pass the role to anyone already in the room, which is
+  the only way back from an admin who closed their laptop. The rules check that the new admin is
+  a participant: handing the room to a uid that never joined would strand it exactly as losing
+  the admin does.
+
 - **A "?" card.** Not every question can be sized, and until now the only way to say so was to
   not vote at all — which reads as "not here yet". "?" is a vote: it is cast, it clears, and it
   is left out of the average and the spread, with its author named in the results as not counted

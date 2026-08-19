@@ -27,6 +27,16 @@ service cloud.firestore {
         return isSignedIn() && session().adminId == request.auth.uid;
       }
 
+      // A room stops accepting writes once its deadline passes — this is the server-side
+      // boundary, not the UI hint that precedes it. Reads stay open, because an expired room
+      // still has to be able to say that it expired.
+      //
+      // Sessions created before lifetimes existed carry no `expiresAt`. They keep working
+      // instead of dying the moment this rule ships.
+      function isLive() {
+        return session().get('expiresAt', request.time + duration.value(1, 'h')) > request.time;
+      }
+
       // A session's document id IS its join code, so a room is reached with a direct get.
       // `list` stays denied: it would let any signed-in visitor enumerate every code and walk
       // into any room.
@@ -37,17 +47,47 @@ service cloud.firestore {
         && request.resource.data.adminId == request.auth.uid
         && request.resource.data.code == sessionId
         && isKnownDeck(request.resource.data.deck)
-        && request.resource.data.keys().hasOnly(['code', 'adminId', 'deck', 'createdAt']);
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + maxLifetime()
+        && request.resource.data.keys()
+             .hasOnly(['code', 'adminId', 'deck', 'createdAt', 'expiresAt']);
 
-      // The deck is the only thing about a session that can change after creation — the code,
-      // the admin and the timestamp are fixed.
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deck'])
-        && isKnownDeck(request.resource.data.deck);
+      // Six hours, plus a few minutes of slack: the deadline is computed on the client, so a
+      // clock running slightly ahead of the server's would otherwise have its own write
+      // rejected. Slack this small doesn't move the boundary in any way that matters.
+      function maxLifetime() {
+        return duration.value(6, 'h') + duration.value(5, 'm');
+      }
+
+      function changedKeys() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+
+      // Three transitions and nothing else. The code and createdAt are fixed forever, and each
+      // branch is a single key, so no two of them can ride along with each other:
+      //
+      // - the deck, while no round is open (the app enforces the timing, the rules the value);
+      // - the deadline, capped ahead but not behind: moving it forward extends the room, moving
+      //   it to now is what "close the room" does, which is why closing and expiring are one
+      //   state rather than two;
+      // - the admin, and only onto somebody who is already a participant — handing the room to
+      //   a uid that never joined would strand it exactly as losing the admin does.
+      //
+      // All three require a live session, so closing and expiring are both terminal: an
+      // abandoned room cannot be revived, which is the point of having a deadline at all.
+      allow update: if isAdmin() && isLive() && (
+        (changedKeys().hasOnly(['deck']) && isKnownDeck(request.resource.data.deck))
+        || (changedKeys().hasOnly(['expiresAt'])
+            && request.resource.data.expiresAt is timestamp
+            && request.resource.data.expiresAt <= request.time + maxLifetime())
+        || (changedKeys().hasOnly(['adminId'])
+            && exists(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.resource.data.adminId)))
+      );
 
       match /participants/{uid} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && uid == request.auth.uid
+        allow write: if isSignedIn() && uid == request.auth.uid && isLive()
           && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
@@ -66,7 +106,7 @@ service cloud.firestore {
         // cap matters more than it looks: `question` is echoed to every participant, and the
         // admin is the only writer, so without a bound one room could be made arbitrarily
         // expensive for everyone in it.
-        allow create: if isAdmin()
+        allow create: if isAdmin() && isLive()
           && request.resource.data.keys().hasOnly(['question', 'revealed', 'createdAt'])
           && request.resource.data.question is string
           && request.resource.data.question.size() > 0
@@ -78,7 +118,7 @@ service cloud.firestore {
         // reopening a round is a feature, so a vote can be reconsidered without losing the
         // question. The question itself is frozen — rewriting what was asked after the answers
         // are in would make the record a lie.
-        allow update: if isAdmin()
+        allow update: if isAdmin() && isLive()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revealed'])
           && request.resource.data.revealed is bool;
 
@@ -94,12 +134,12 @@ service cloud.firestore {
           // rewritten), and only a value that exists in this session's deck — or '?', which
           // belongs to no deck because it is not an estimate. See UNSURE_CARD in src/config.ts.
           allow create, update: if isSignedIn() && uid == request.auth.uid
-            && roundIsOpen()
+            && isLive() && roundIsOpen()
             && request.resource.data.keys().hasOnly(['value', 'createdAt'])
             && (request.resource.data.value == '?'
                 || request.resource.data.value in deckValues(session().get('deck', 'modified')));
 
-          allow delete: if isSignedIn() && uid == request.auth.uid && roundIsOpen();
+          allow delete: if isSignedIn() && uid == request.auth.uid && isLive() && roundIsOpen();
         }
       }
     }
