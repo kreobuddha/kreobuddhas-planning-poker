@@ -1,9 +1,9 @@
 import './Room.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { Alert, Button, Spinner, TextField, useToast } from '@kreobuddha/ui';
+import { Alert, Spinner, useToast } from '@kreobuddha/ui';
 import { CARD_DECKS, deckKeyOf } from '@/config';
 import type { DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
@@ -14,17 +14,19 @@ import {
   useAskQuestionMutation,
   useCastVoteMutation,
   useClearVoteMutation,
+  useReopenRoundMutation,
   useRevealVotesMutation,
   useSetDeckMutation,
   useSubscribeLatestRoundQuery,
   useSubscribeParticipantsQuery,
   useSubscribeVotesQuery,
 } from '@/main/sections/Room/endpoints/roomApi';
-import VoteCards from '@/components/VoteCards/VoteCards';
-import ParticipantList from '@/components/ParticipantList/ParticipantList';
-import Results from '@/components/Results/Results';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
-import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
+import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
+import RoomSidebar from '@/main/sections/Room/components/RoomSidebar/RoomSidebar';
+import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
+import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
+import RoundPanel from '@/main/sections/Room/components/RoundPanel/RoundPanel';
 
 interface RoomProps {
   userId: string;
@@ -56,11 +58,12 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     session && round ? { sessionId: session.id, roundId: round.id } : skipToken
   );
 
-  const [askQuestion] = useAskQuestionMutation();
+  const [askQuestion, { isLoading: asking }] = useAskQuestionMutation();
   const [castVote, { isLoading: casting }] = useCastVoteMutation();
   const [clearVote, { isLoading: clearing }] = useClearVoteMutation();
-  const [revealVotes] = useRevealVotesMutation();
-  const [setDeck] = useSetDeckMutation();
+  const [revealVotes, { isLoading: revealing }] = useRevealVotesMutation();
+  const [reopenRound, { isLoading: reopening }] = useReopenRoundMutation();
+  const [setDeck, { isLoading: settingDeck }] = useSetDeckMutation();
   const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
 
   const isAdmin = session?.adminId === userId;
@@ -103,6 +106,15 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       await revealVotes({ sessionId: session.id, roundId: round.id }).unwrap();
     } catch (err) {
       reportFailure(err, 'Could not reveal votes.');
+    }
+  };
+
+  const handleReopen = async (): Promise<void> => {
+    if (!session || !round) return;
+    try {
+      await reopenRound({ sessionId: session.id, roundId: round.id }).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not reopen the round.');
     }
   };
 
@@ -150,84 +162,62 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   if (!participantsLoading && !me) {
     return (
-      <div className="room room--joining">
-        <form onSubmit={handleJoin} className="room__join-form">
-          <h1>Join session {session.code}</h1>
-          <TextField
-            label="Your name"
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            fullWidth
-          />
-          <Button type="submit" loading={joining} disabled={!nameDraft.trim()}>
-            Join
-          </Button>
-        </form>
-      </div>
+      <JoinForm
+        code={session.code}
+        name={nameDraft}
+        busy={joining}
+        onNameChange={setNameDraft}
+        onSubmit={handleJoin}
+      />
     );
   }
 
   return (
     <div className="room">
-      <header className="room__header">
-        <Link to="/" className="room__back">
-          ← Home
-        </Link>
-        <div className="room__title-row">
-          <h1>Session {session.code}</h1>
-          <CopyLinkButton />
-        </div>
-        <p>
-          Share this code with your team to let them join.
-          {me && <span className="room__you">You are {me.name}</span>}
-        </p>
-      </header>
+      <RoomHeader code={session.code} youAre={me?.name ?? null} />
 
       <div className="room__body">
-        <aside className="room__sidebar">
-          <h2>Participants</h2>
-          <ParticipantList
-            participants={participants}
-            votedIds={votedIdsSet}
-            revealed={round?.revealed ?? false}
-            adminId={session.adminId}
-          />
-        </aside>
+        <RoomSidebar
+          participants={participants}
+          votedIds={votedIdsSet}
+          revealed={round?.revealed ?? false}
+          adminId={session.adminId}
+          loading={participantsLoading}
+        />
 
         <main className="room__main">
-          {isAdmin && <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />}
+          {isAdmin && (
+            <DeckPicker
+              value={deck}
+              disabled={votingOpen || settingDeck}
+              onChange={handleDeckChange}
+            />
+          )}
 
           {isAdmin && (!round || round.revealed) && (
-            <form onSubmit={handleAskQuestion} className="room__ask-form">
-              <h2>Ask a question</h2>
-              <TextField
-                label="What are we estimating?"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                fullWidth
-              />
-              <Button type="submit">Start voting</Button>
-            </form>
+            <AskQuestionForm
+              question={question}
+              busy={asking}
+              onQuestionChange={setQuestion}
+              onSubmit={handleAskQuestion}
+            />
           )}
 
           {round && (
-            <div className="round">
-              <h2 className="room__question">{round.question}</h2>
-
-              {!round.revealed && (
-                <>
-                  <VoteCards
-                    values={CARD_DECKS[deck].values}
-                    selected={myVote?.value ?? null}
-                    disabled={casting || clearing}
-                    onSelect={handleVote}
-                  />
-                  {isAdmin && <Button onClick={handleReveal}>Reveal cards</Button>}
-                </>
-              )}
-
-              {round.revealed && <Results votes={votes} participants={participants} />}
-            </div>
+            <RoundPanel
+              round={round}
+              deckValues={CARD_DECKS[deck].values}
+              votes={votes}
+              participants={participants}
+              myVote={myVote?.value ?? null}
+              isAdmin={isAdmin}
+              voting={casting || clearing}
+              revealing={revealing}
+              reopening={reopening}
+              onSelect={handleVote}
+              onReveal={handleReveal}
+              onReopen={handleReopen}
+            />
           )}
 
           {!round && !isAdmin && <p>Waiting for the admin to ask a question…</p>}

@@ -7,6 +7,13 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Added
+
+- **Reopening a round.** After a reveal the admin can put the same question back to the table:
+  the cards come back, every vote already cast is still there, and anyone can change their mind.
+  Previously a revealed round was final and the only way on was a new question.
+- `LICENSE` (MIT).
+
 ### Changed
 
 - **TypeScript runs in `strict` mode**, and the Firestore rules suite is type-checked with
@@ -21,23 +28,37 @@ not when an API does, because there is no public API here.
 - **The Firestore rules deploy from CI** instead of by hand, so the file in the repository can no
   longer drift from what is actually enforced. `npm run test:rules` runs first as a gate, and the
   rules get their own service account rather than widening the one that publishes the site.
-- The rules suite grew from 8 cases to 19: unauthenticated access, isolation between sessions,
-  deletions, `hasOnly` violations, and an empty participant name. One of the new cases documents
-  a gap rather than a guarantee — someone who never joined a session can still cast a vote in it.
+- **The round rules validate what they accept.** `create` was `if isAdmin()` and nothing more,
+  which let an admin write a round of any shape or size; it now takes the question, the flag and
+  the clock, requires a non-empty question of at most 200 characters, and insists a new round
+  starts closed. `update` is confined to `revealed`, so the question cannot be rewritten once the
+  answers are in — and that is also what makes reopening safe to allow.
+- **`Room.tsx` is five components rather than one file**: the header, the participant sidebar,
+  the join form, the ask-a-question form and the round panel. Nothing about the room changed on
+  screen.
+- **The vote cards say what they are.** They were bare `<button>`s: no `type`, no group, no
+  indication of which one you had chosen beyond its colour. They are now a labelled `role="group"`
+  of toggle buttons carrying `aria-pressed` — toggles rather than radios, because pressing the
+  card you already hold clears your vote, and a radio cannot be un-chosen.
+- Name and question fields carry the length limits the security rules enforce, so hitting one is
+  a field that stops accepting text rather than a permission error. Reveal, reopen, ask and deck
+  changes show their in-flight state. A reveal or a reopen is announced to a screen reader — it
+  is the one thing in the room that changes without the reader doing anything. Layout heights use
+  `dvh`, so mobile browser chrome no longer makes the page taller than the screen.
+- `@kreobuddha/ui` moved from `0.19.0` to `1.0.0`. The library's first stable major changes
+  nothing this app can see: the components it uses have the same props, and every design token
+  keeps its name and its value. What did change is the stylesheet, which lost a duplicated token
+  block and halved in size.
+- The rules suite grew from 8 cases to 21: unauthenticated access, isolation between sessions,
+  deletions, `hasOnly` violations, an empty participant name, and everything the new round rules
+  now refuse. One of the new cases documents a gap rather than a guarantee — someone who never
+  joined a session can still cast a vote in it.
 
 ### Removed
 
 - `docs/kb-audit.md`, a stale snapshot that described a former employer's codebase in a public
   repository, and the reference to a private knowledge base in `docs/code-rules.md`.
 - `public/icons.svg`, referenced from nowhere, and the never-imported `RootDispatch` export.
-
-### Added
-
-- `LICENSE` (MIT).
-- `@kreobuddha/ui` moved from `0.19.0` to `1.0.0`. The library's first stable major changes
-  nothing this app can see: the components it uses have the same props, and every design
-  token keeps its name and its value. What did change is the stylesheet, which lost a
-  duplicated token block and halved in size.
 
 ## [0.2.0] — 2026-08-18
 

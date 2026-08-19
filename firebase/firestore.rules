@@ -61,7 +61,26 @@ service cloud.firestore {
         }
 
         allow read: if isSignedIn();
-        allow create, update: if isAdmin();
+
+        // A round starts closed and carries nothing but the question and its clock. The size
+        // cap matters more than it looks: `question` is echoed to every participant, and the
+        // admin is the only writer, so without a bound one room could be made arbitrarily
+        // expensive for everyone in it.
+        allow create: if isAdmin()
+          && request.resource.data.keys().hasOnly(['question', 'revealed', 'createdAt'])
+          && request.resource.data.question is string
+          && request.resource.data.question.size() > 0
+          && request.resource.data.question.size() <= 200
+          && request.resource.data.revealed == false
+          && request.resource.data.createdAt is number;
+
+        // `revealed` is the only thing about a round that ever changes, and it moves both ways:
+        // reopening a round is a feature, so a vote can be reconsidered without losing the
+        // question. The question itself is frozen — rewriting what was asked after the answers
+        // are in would make the record a lie.
+        allow update: if isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revealed'])
+          && request.resource.data.revealed is bool;
 
         // Votes are readable by everyone in the session, including before the reveal: the UI
         // needs the list to show who has voted, and Firestore allows or denies a collection

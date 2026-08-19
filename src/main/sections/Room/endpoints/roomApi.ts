@@ -91,6 +91,17 @@ export const roomApi = emptyApi.injectEndpoints({
         data: { revealed: true },
       }),
     }),
+
+    // The reveal, undone. Votes already cast are left alone — the rules allow writing and
+    // clearing them again the moment the round is open, so reopening returns the room to exactly
+    // where it was rather than starting the question over.
+    reopenRound: builder.mutation<void, RoundArg>({
+      query: ({ sessionId, roundId }) => ({
+        url: `/sessions/${sessionId}/rounds/${roundId}`,
+        method: 'PATCH',
+        data: { revealed: false },
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -104,4 +115,5 @@ export const {
   useClearVoteMutation,
   useSetDeckMutation,
   useRevealVotesMutation,
+  useReopenRoundMutation,
 } = roomApi;

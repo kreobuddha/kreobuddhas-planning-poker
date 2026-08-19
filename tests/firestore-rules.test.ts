@@ -190,6 +190,53 @@ describe('rounds', () => {
     );
   });
 
+  it('rejects a create that is malformed, oversized or already revealed', async () => {
+    const db = asUser(ADMIN);
+    const clock = { revealed: false, createdAt: Date.now() };
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/rounds/bad-empty`), { ...clock, question: '' })
+    );
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/rounds/bad-long`), { ...clock, question: 'x'.repeat(201) })
+    );
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/rounds/bad-extra`), {
+        ...clock,
+        question: 'Fine',
+        note: 'not part of the model',
+      })
+    );
+    // A round that arrives already revealed would be a result with no vote behind it.
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/rounds/bad-open`), {
+        question: 'Fine',
+        revealed: true,
+        createdAt: Date.now(),
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/rounds/bad-clock`), {
+        question: 'Fine',
+        revealed: false,
+        createdAt: 'just now',
+      })
+    );
+  });
+
+  it('opens and reopens, but never rewrites the question', async () => {
+    const db = asUser(ADMIN);
+    const path = `${sessionPath}/rounds/reopenable`;
+    await assertSucceeds(
+      setDoc(doc(db, path), { question: 'Asked once', revealed: false, createdAt: Date.now() })
+    );
+    await assertSucceeds(updateDoc(doc(db, path), { revealed: true }));
+    // The point of the pair: a revealed round can go back to accepting votes.
+    await assertSucceeds(updateDoc(doc(db, path), { revealed: false }));
+
+    await assertFails(updateDoc(doc(db, path), { question: 'Asked differently' }));
+    await assertFails(updateDoc(doc(db, path), { revealed: true, question: 'Both at once' }));
+  });
+
   it('cannot be deleted, so a revealed round stays on the record', async () => {
     await assertFails(deleteDoc(doc(asUser(ADMIN), `${sessionPath}/rounds/${REVEALED_ROUND}`)));
     await assertFails(deleteDoc(doc(asUser(MEMBER), `${sessionPath}/rounds/${OPEN_ROUND}`)));
