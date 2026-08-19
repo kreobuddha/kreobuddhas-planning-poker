@@ -7,6 +7,20 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A room could not be created at all in 0.3.0.** Creating one writes the session document and
+  its admin's participant row as a single batch, so that a room can never exist with nobody able
+  to join it. The deadline rules added in 0.3.0 gated participant writes on reading the session
+  document — but rules evaluate each write in a batch independently and against the state before
+  it, so the session document does not exist yet while the participant row is being checked. The
+  row was refused, the batch rolled back, and every "Create session" ended in a permission error.
+  Writes to a session that does not exist are now allowed through that one gate, which is what
+  they were before deadlines existed.
+- The rules suite had no case that wrote a batch, which is why 28 passing cases said nothing
+  about the one path every room is created through. It now exercises the batch the app actually
+  writes.
+
 ## [0.3.0] — 2026-08-19
 
 ### Added
