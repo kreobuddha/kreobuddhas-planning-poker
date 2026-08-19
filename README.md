@@ -13,6 +13,8 @@ project. Anyone can open a room there; nothing in it is private.
 ## Stack
 
 - React + TypeScript + Vite
+- [`@kreobuddha/ui`](https://github.com/kreobuddha/kreobuddha-ui) 1.0.0 — the component
+  library and design tokens the interface is built from
 - [Firebase](https://firebase.google.com) — Firestore, Realtime listeners, anonymous auth
 - react-router-dom
 

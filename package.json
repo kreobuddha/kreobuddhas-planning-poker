@@ -13,7 +13,7 @@
     "test:rules": "firebase emulators:exec --only firestore \"node --test tests/*.test.ts\""
   },
   "dependencies": {
-    "@kreobuddha/ui": "^0.19.0",
+    "@kreobuddha/ui": "^1.0.0",
     "@reduxjs/toolkit": "^2.5.0",
     "clsx": "^2.1.1",
     "firebase": "^12.17.1",
