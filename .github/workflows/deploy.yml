@@ -74,26 +74,13 @@ jobs:
       # the app has. It runs before either deploy so that a failure costs nothing.
       - run: npm run test:rules
 
-      # A service-account key, and the reason the deploy is not a bare `npm` command: it is
-      # written outside the checkout, with a umask that keeps it to this user, and never echoed.
-      # `firebase-tools` is already a devDependency, so no third-party action gets a look at it.
-      # The account holds Firebase Hosting Admin and nothing else — it cannot touch Firestore or
-      # its rules, which have their own key in the step below.
-      - name: Deploy to Firebase Hosting
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
-        run: |
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "FIREBASE_SERVICE_ACCOUNT is not set — see README, 'The public demo'." >&2
-            exit 1
-          fi
-          key="$RUNNER_TEMP/firebase-service-account.json"
-          (umask 077; printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$key")
-          GOOGLE_APPLICATION_CREDENTIALS="$key" \
-            npx firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
-          rm -f "$key"
-
+      # Rules before the site, deliberately. Either order leaves a window where one half of a
+      # release is live and the other is not; the question is which half. Rules first means the
+      # window is the old app against the new rules — and the old app is what those rules were
+      # reviewed against anyway. Site first means a new app against old rules: a client asking
+      # for something the boundary has not learned to allow yet. 0.3.0 shipped that way, and no
+      # room could be created until the rules caught up.
+      #
       # Deployed from here rather than by hand, because a rules file that only exists in the
       # repository drifts from what is actually enforced, and nothing in the app can tell you
       # that it has. Its own service account, holding Firebase Rules Admin and nothing else: the
@@ -111,4 +98,24 @@ jobs:
           (umask 077; printf '%s' "$FIREBASE_RULES_SERVICE_ACCOUNT" > "$key")
           GOOGLE_APPLICATION_CREDENTIALS="$key" \
             npx firebase deploy --only firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
+          rm -f "$key"
+
+      # A service-account key, and the reason the deploy is not a bare `npm` command: it is
+      # written outside the checkout, with a umask that keeps it to this user, and never echoed.
+      # `firebase-tools` is already a devDependency, so no third-party action gets a look at it.
+      # The account holds Firebase Hosting Admin and nothing else — it cannot touch Firestore or
+      # its rules, which have their own key in the step above.
+      - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT is not set — see README, 'The public demo'." >&2
+            exit 1
+          fi
+          key="$RUNNER_TEMP/firebase-service-account.json"
+          (umask 077; printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$key")
+          GOOGLE_APPLICATION_CREDENTIALS="$key" \
+            npx firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
           rm -f "$key"
