@@ -1,4 +1,4 @@
-import type { DeckKey } from '@/config';
+import type { CardValue, DeckKey } from '@/config';
 
 export interface ISession {
   id: string;
@@ -27,6 +27,6 @@ export interface IRound {
 // Vote doc ID is the voting participant's uid.
 export interface IVote {
   id: string;
-  value: number;
+  value: CardValue;
   createdAt: number;
 }

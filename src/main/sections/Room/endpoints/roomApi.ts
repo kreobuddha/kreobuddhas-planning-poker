@@ -1,5 +1,5 @@
 import { serverTimestamp } from 'firebase/firestore';
-import type { DeckKey } from '@/config';
+import type { CardValue, DeckKey } from '@/config';
 import type { IParticipant, IRound, IVote } from '@/types';
 import { emptyApi } from '@/store/emptyApi';
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
@@ -61,7 +61,7 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
-    castVote: builder.mutation<void, MyVoteArg & { value: number }>({
+    castVote: builder.mutation<void, MyVoteArg & { value: CardValue }>({
       query: ({ sessionId, roundId, userId, value }) => ({
         url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
         method: 'PUT',

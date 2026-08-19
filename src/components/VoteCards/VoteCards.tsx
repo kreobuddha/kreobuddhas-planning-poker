@@ -1,14 +1,16 @@
 import './VoteCards.scss';
 import type { ReactElement } from 'react';
 import clsx from 'clsx';
+import { UNSURE_CARD } from '@/config';
+import type { CardValue } from '@/config';
 
 interface VoteCardsProps {
   values: readonly number[];
-  selected: number | null;
+  selected: CardValue | null;
   disabled: boolean;
   /** Names the group for a reader who arrives at it without the heading above. */
   label: string;
-  onSelect: (value: number) => void;
+  onSelect: (value: CardValue) => void;
 }
 
 // Toggle buttons rather than a radio group, and deliberately: picking the card you already hold
@@ -22,15 +24,24 @@ const VoteCards = ({
   label,
   onSelect,
 }: VoteCardsProps): ReactElement => {
+  const cards: readonly CardValue[] = [...values, UNSURE_CARD];
+
   return (
     <div className="vote-cards" role="group" aria-label={label}>
-      {values.map((value) => (
+      {cards.map((value) => (
         <button
           key={value}
           type="button"
-          className={clsx('vote-cards__card', selected === value && 'vote-cards__card--selected')}
+          className={clsx(
+            'vote-cards__card',
+            value === UNSURE_CARD && 'vote-cards__card--unsure',
+            selected === value && 'vote-cards__card--selected'
+          )}
           disabled={disabled}
           aria-pressed={selected === value}
+          // The glyph alone doesn't say what pressing it means, and it is the one card whose
+          // effect on the result is different from every other.
+          aria-label={value === UNSURE_CARD ? 'Not sure — no estimate' : undefined}
           onClick={() => onSelect(value)}
         >
           {value}

@@ -91,11 +91,13 @@ service cloud.firestore {
           allow read: if isSignedIn();
 
           // Only your own vote, only while the round is open (so a revealed result can't be
-          // rewritten), and only a value that exists in this session's deck.
+          // rewritten), and only a value that exists in this session's deck — or '?', which
+          // belongs to no deck because it is not an estimate. See UNSURE_CARD in src/config.ts.
           allow create, update: if isSignedIn() && uid == request.auth.uid
             && roundIsOpen()
             && request.resource.data.keys().hasOnly(['value', 'createdAt'])
-            && request.resource.data.value in deckValues(session().get('deck', 'modified'));
+            && (request.resource.data.value == '?'
+                || request.resource.data.value in deckValues(session().get('deck', 'modified')));
 
           allow delete: if isSignedIn() && uid == request.auth.uid && roundIsOpen();
         }

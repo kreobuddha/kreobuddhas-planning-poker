@@ -8,6 +8,13 @@ export const CARD_DECKS = {
 
 export type DeckKey = keyof typeof CARD_DECKS;
 
+// Deliberately not a member of any deck's `values`: "?" is not an estimate but a refusal to
+// give one, so it is drawn after the deck and left out of the statistics. Mirrored in
+// firebase/firestore.rules, which cannot import this file.
+export const UNSURE_CARD = '?';
+
+export type CardValue = number | typeof UNSURE_CARD;
+
 export const DEFAULT_DECK: DeckKey = 'modified';
 
 // A session's `deck` is a plain string in Firestore, so it can name a deck this build no longer

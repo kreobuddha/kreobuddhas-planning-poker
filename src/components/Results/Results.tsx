@@ -1,5 +1,7 @@
 import './Results.scss';
 import type { ReactElement } from 'react';
+import clsx from 'clsx';
+import { UNSURE_CARD } from '@/config';
 import type { IParticipant, IVote } from '@/types';
 
 interface ResultsProps {
@@ -14,7 +16,10 @@ const Results = ({ votes, participants }: ResultsProps): ReactElement => {
   const votedIds = new Set(votes.map((v) => v.id));
   const silent = participants.filter((p) => !votedIds.has(p.id));
 
-  const values = votes.map((v) => v.value);
+  // "?" is a refusal to estimate, so it counts as a vote cast but never as a number: averaging
+  // it in — or picking any stand-in number for it — would be inventing an estimate nobody gave.
+  const numeric = votes.filter((v): v is IVote & { value: number } => v.value !== UNSURE_CARD);
+  const values = numeric.map((v) => v.value);
   const average = values.reduce((sum, v) => sum + v, 0) / values.length;
   const lowest = Math.min(...values);
   const highest = Math.max(...values);
@@ -23,9 +28,13 @@ const Results = ({ votes, participants }: ResultsProps): ReactElement => {
     <div className="results">
       <div className="results__grid">
         {votes.map((v) => (
-          <div key={v.id} className="results__card">
+          <div
+            key={v.id}
+            className={clsx('results__card', v.value === UNSURE_CARD && 'results__card--aside')}
+          >
             <div className="results__value">{v.value}</div>
             <div className="results__name">{nameFor(v.id)}</div>
+            {v.value === UNSURE_CARD && <div className="results__note">not counted</div>}
           </div>
         ))}
         {/* A missing vote is a result too: without it the room cannot tell an absent estimate

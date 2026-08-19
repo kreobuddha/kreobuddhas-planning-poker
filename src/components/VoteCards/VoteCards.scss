@@ -17,6 +17,12 @@
   font-size: 1.1rem;
   font-weight: 600;
 
+  // Set apart from the numbers on purpose: it is the one card that does not answer the question.
+  &--unsure {
+    color: var(--kreo-text-muted);
+    border-style: dashed;
+  }
+
   &--selected {
     background: var(--kreo-surface-accent-soft);
     border-color: var(--kreo-accent-500);

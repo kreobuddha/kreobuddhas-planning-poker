@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { Button } from '@kreobuddha/ui';
 import VoteCards from '@/components/VoteCards/VoteCards';
 import Results from '@/components/Results/Results';
+import type { CardValue } from '@/config';
 import type { IParticipant, IRound, IVote } from '@/types';
 
 interface RoundPanelProps {
@@ -10,12 +11,12 @@ interface RoundPanelProps {
   deckValues: readonly number[];
   votes: IVote[];
   participants: IParticipant[];
-  myVote: number | null;
+  myVote: CardValue | null;
   isAdmin: boolean;
   voting: boolean;
   revealing: boolean;
   reopening: boolean;
-  onSelect: (value: number) => void;
+  onSelect: (value: CardValue) => void;
   onReveal: () => void;
   onReopen: () => void;
 }
