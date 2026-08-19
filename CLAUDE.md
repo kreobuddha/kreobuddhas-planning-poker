@@ -53,9 +53,14 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   `store/authApi.ts` (the `signInAnonymously` endpoint)
 - `src/lib/` — Firebase client init, session code generator, remembered participant name
 - `src/config.ts` — the card decks (`CARD_DECKS`, `DEFAULT_DECK`) and `deckKeyOf`, which falls
-  back to the default rather than trusting a `deck` string that came out of Firestore
+  back to the default rather than trusting a `deck` string that came out of Firestore; plus every
+  constant the client shares with the rules: `UNSURE_CARD`, `NAME_MAX_LENGTH`,
+  `QUESTION_MAX_LENGTH`, `SESSION_TTL_MS` and `SESSION_MAX_EXTENSION_MS`. **Rules can't import
+  this file**, so anything here with a counterpart in `firebase/firestore.rules` has to be
+  changed on both sides at once — the comments beside each constant say which
 - `src/types.ts` — domain interfaces (`ISession`, `IParticipant`, `IRound`, `IVote`)
-- `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section
+- `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section;
+  a section large enough to split keeps its own `components/` folder (Room does)
 - `src/main/endpoints/` — endpoints shared across sections (currently `sessionsApi.ts`,
   looking a session up by code)
 

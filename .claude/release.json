@@ -44,8 +44,8 @@
   "ci": {
     "workflow": "ci.yml",
     "checks_prs_into_release": true,
-    "checks_prs_into_base": false,
-    "$comment": "ci.yml triggers on pull_request into master and release/**, and it is present on release/0.3.0 but NOT yet on master. GitHub takes the workflow from the pull request's BASE branch, so pull requests into release/0.3.0 are checked while the release pull request into master is not. Run verify_full locally before that one and say so in its body. Flip checks_prs_into_base to true once a release merge has carried ci.yml onto master."
+    "checks_prs_into_base": true,
+    "$comment": "ci.yml triggers on pull_request into master and release/**. Both flags are true even though ci.yml is not on master yet: for pull_request events GitHub takes the workflow from the merge ref, not from the base branch, so the copy on the head branch runs. Verified on PR #21 (run 32252598102), which ran the full job including test:rules while master had no ci.yml at all. The earlier comment here claimed the opposite and was wrong."
   },
 
   "release": {

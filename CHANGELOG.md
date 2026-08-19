@@ -25,7 +25,6 @@ not when an API does, because there is no public API here.
   the only way back from an admin who closed their laptop. The rules check that the new admin is
   a participant: handing the room to a uid that never joined would strand it exactly as losing
   the admin does.
-
 - **A "?" card.** Not every question can be sized, and until now the only way to say so was to
   not vote at all — which reads as "not here yet". "?" is a vote: it is cast, it clears, and it
   is left out of the average and the spread, with its author named in the results as not counted
@@ -93,8 +92,8 @@ not when an API does, because there is no public API here.
 
 ### Removed
 
-- `docs/kb-audit.md`, a stale snapshot that described a former employer's codebase in a public
-  repository, and the reference to a private knowledge base in `docs/code-rules.md`.
+- `docs/kb-audit.md`, a stale internal document that had no business being in a public
+  repository, and a reference to private material in `docs/code-rules.md`.
 - `public/icons.svg`, referenced from nowhere, the never-imported `RootDispatch` export, and the
   unused `select: 'ids'` branch of the query layer.
 
