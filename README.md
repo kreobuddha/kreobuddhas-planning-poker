@@ -60,11 +60,16 @@ CLAUDE.md for why.
 
 ## Continuous integration
 
-Every pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `lint`,
-`format:check`, `build`, and the rules suite above, with a JDK and the Firestore emulator on the
-runner. It watches pull requests into `master` **and** into `release/**`, because work on a
-release is merged into its release branch first and only the finished release reaches `master` —
-a run limited to `master` would check nothing until it was too late to matter.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `lint`, `format:check`, `build`, and
+the rules suite above, with a JDK and the Firestore emulator on the runner. It watches pull
+requests into `master` **and** into `release/**`, because work on a release is merged into its
+release branch first and only the finished release reaches `master` — a run limited to `master`
+would check nothing until it was too late to matter.
+
+One gap is worth naming rather than glossing over: GitHub takes a workflow from the pull request's
+_base_ branch, and `ci.yml` has not reached `master` yet, so the pull request that closes a release
+is the one pull request it does not check. Until the first release merge carries the file across,
+that one is verified locally instead.
 
 `deploy.yml` runs the same rules suite before it publishes anything, as a gate rather than a
 formality: it deploys those very rules to the live demo a step later.
