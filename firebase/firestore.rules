@@ -33,8 +33,19 @@ service cloud.firestore {
       //
       // Sessions created before lifetimes existed carry no `expiresAt`. They keep working
       // instead of dying the moment this rule ships.
+      //
+      // The `!exists` arm is not a loophole, it is the create path. A room is created as one
+      // batch — the session document and its admin's participant row together, so a room can
+      // never exist with nobody able to join it. Rules evaluate each write in a batch
+      // independently and against the state *before* it, so while that batch is being checked
+      // the session document does not exist yet and `session()` reads nothing. Without this arm
+      // the participant row is refused, the whole batch rolls back, and no room can be created
+      // at all — which is exactly what shipped in 0.3.0. Writing a participant row under a
+      // session id that does not exist was equally possible before deadlines existed; it strands
+      // a row nobody reads, and creates nothing.
       function isLive() {
-        return session().get('expiresAt', request.time + duration.value(1, 'h')) > request.time;
+        return !exists(/databases/$(database)/documents/sessions/$(sessionId))
+          || session().get('expiresAt', request.time + duration.value(1, 'h')) > request.time;
       }
 
       // A session's document id IS its join code, so a room is reached with a direct get.

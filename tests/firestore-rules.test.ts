@@ -15,6 +15,7 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
@@ -159,6 +160,44 @@ describe('sessions', () => {
     await assertFails(
       setDoc(doc(db, 'sessions/OTHER2'), { ...valid, code: 'OTHER2', adminId: OUTSIDER })
     );
+  });
+
+  // The shape `createSession` actually writes, and the one case the suite was missing when the
+  // deadline rules shipped: both documents in a single batch. Rules check each write in a batch
+  // against the state before it, so the participant row is evaluated while the session document
+  // still does not exist — which is where 0.3.0 refused every new room.
+  it('is created together with its admin in one batch', async () => {
+    const db = asUser(ADMIN);
+    const code = 'BATCH1';
+    const batch = writeBatch(db);
+    batch.set(doc(db, `sessions/${code}`), {
+      code,
+      adminId: ADMIN,
+      deck: 'modified',
+      createdAt: Date.now(),
+      expiresAt: hoursFromNow(3),
+    });
+    batch.set(doc(db, `sessions/${code}/participants/${ADMIN}`), {
+      name: 'Admin',
+      joinedAt: Date.now(),
+    });
+    await assertSucceeds(batch.commit());
+
+    // The same batch under somebody else's name is still refused: the create rule decides that,
+    // and the arm that lets the participant row through does not soften it.
+    const stolen = writeBatch(asUser(OUTSIDER));
+    stolen.set(doc(asUser(OUTSIDER), 'sessions/BATCH2'), {
+      code: 'BATCH2',
+      adminId: ADMIN,
+      createdAt: Date.now(),
+      deck: 'modified',
+      expiresAt: hoursFromNow(3),
+    });
+    stolen.set(doc(asUser(OUTSIDER), `sessions/BATCH2/participants/${OUTSIDER}`), {
+      name: 'Outsider',
+      joinedAt: Date.now(),
+    });
+    await assertFails(stolen.commit());
   });
 
   it('lets the admin change only the deck, and only to a known one', async () => {
