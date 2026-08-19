@@ -7,6 +7,8 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-19
+
 ### Added
 
 - **Rooms have a lifetime.** A session now carries a deadline and stops accepting writes once it
