@@ -185,15 +185,18 @@ describe('sessions', () => {
 
     // The same batch under somebody else's name is still refused: the create rule decides that,
     // and the arm that lets the participant row through does not soften it.
-    const stolen = writeBatch(asUser(OUTSIDER));
-    stolen.set(doc(asUser(OUTSIDER), 'sessions/BATCH2'), {
+    // One instance, held once: `asUser` builds a fresh Firestore each call, and a batch will not
+    // accept a document reference that came from a different one.
+    const outsiderDb = asUser(OUTSIDER);
+    const stolen = writeBatch(outsiderDb);
+    stolen.set(doc(outsiderDb, 'sessions/BATCH2'), {
       code: 'BATCH2',
       adminId: ADMIN,
       createdAt: Date.now(),
       deck: 'modified',
       expiresAt: hoursFromNow(3),
     });
-    stolen.set(doc(asUser(OUTSIDER), `sessions/BATCH2/participants/${OUTSIDER}`), {
+    stolen.set(doc(outsiderDb, `sessions/BATCH2/participants/${OUTSIDER}`), {
       name: 'Outsider',
       joinedAt: Date.now(),
     });
