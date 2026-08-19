@@ -177,3 +177,7 @@ firebase/
   firestore.rules            Security rules
   firestore.indexes.json     Composite index config (empty — none needed yet)
 ```
+
+## License
+
+[MIT](LICENSE).
