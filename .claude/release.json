@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "repo": "kreobuddha/kreobuddhas-planning-poker",
+  "base_branch": "master",
+  "branch_types": ["feat", "fix", "docs", "chore", "ci", "refactor"],
+  "release_branch_pattern": "release/{version}",
+
+  "commands": {
+    "verify_fast": "npm run lint && npm run format:check",
+    "verify_full": "npm run lint && npm run format:check && npm run build",
+    "extra_pre_release": ["npm run test:rules"],
+    "$comment": "test:rules needs the Firestore emulator and a JDK on PATH. It is not in verify_full because it is slow and only matters when firebase/firestore.rules changed — run it there and before the release pull request. Say plainly if the JDK is missing and it could not run; never report it as passing."
+  },
+
+  "commit": {
+    "convention": "conventional",
+    "scopes_used": false,
+    "breaking_marker": "!",
+    "release_subject": "chore(release): {version}",
+    "$comment": "Conventional Commits adopted 2026-08-19. Earlier history is free-form imperative and is never rewritten, so the log is mixed by design."
+  },
+
+  "changelog": {
+    "path": "CHANGELOG.md",
+    "unreleased_heading": "## [Unreleased]",
+    "heading_template": "## [{version}] — {date}",
+    "notes_script": "node scripts/release-notes.mjs {version}",
+    "required_for_types": ["feat", "fix"]
+  },
+
+  "version_files": ["package.json", "package-lock.json"],
+
+  "pull_request": {
+    "merge_method": "merge",
+    "delete_branch_after_merge": true
+  },
+
+  "autonomy": {
+    "merge_feature_into_release": true,
+    "review_feature_prs": false,
+    "review_release_pr": true
+  },
+
+  "ci": {
+    "workflow": "ci.yml",
+    "checks_prs_into_release": true,
+    "checks_prs_into_base": true,
+    "$comment": "ci.yml triggers on pull_request into master and release/**. Both flags are true even though ci.yml is not on master yet: for pull_request events GitHub takes the workflow from the merge ref, not from the base branch, so the copy on the head branch runs. Verified on PR #21 (run 32252598102), which ran the full job including test:rules while master had no ci.yml at all. The earlier comment here claimed the opposite and was wrong."
+  },
+
+  "release": {
+    "workflow": "release.yml",
+    "dispatch_ref": "master",
+    "input_name": "version",
+    "publishes_npm": false,
+    "package_name": null,
+    "creates_tag": true,
+    "creates_github_release": true,
+    "$comment": "Private app: a release is a tag plus a GitHub release, nothing more. Unlike kreobuddha-ui this workflow has NO branch guard of its own — dispatching it against another ref would tag that ref. Always pass --ref master."
+  },
+
+  "post_tag": [
+    "gh release view v{version} — notes match the CHANGELOG section",
+    "confirm the Deploy workflow run for the release merge commit on master succeeded",
+    "open the live demo and smoke-test create session / vote / reveal",
+    "if firebase/firestore.rules changed, confirm the rules deploy step in that run succeeded"
+  ],
+
+  "deploy": {
+    "on_merge": true,
+    "workflow": "deploy.yml",
+    "target": "Firebase Hosting + Firestore rules",
+    "$comment": "Merging the release pull request into master IS the production deploy. That is an extra reason the merge is Rustam's action and never Claude's."
+  },
+
+  "docs": {
+    "policy": "README.md",
+    "rules": "firebase/firestore.rules",
+    "code_rules": "docs/code-rules.md"
+  }
+}

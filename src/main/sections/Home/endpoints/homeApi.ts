@@ -1,5 +1,5 @@
-import { serverTimestamp } from 'firebase/firestore';
-import { DEFAULT_DECK } from '@/config';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { DEFAULT_DECK, SESSION_TTL_MS } from '@/config';
 import { emptyApi } from '@/store/emptyApi';
 
 export const homeApi = emptyApi.injectEndpoints({
@@ -16,7 +16,15 @@ export const homeApi = emptyApi.injectEndpoints({
           {
             url: `/sessions/${code}`,
             method: 'PUT',
-            data: { code, adminId: userId, deck: DEFAULT_DECK, createdAt: serverTimestamp() },
+            data: {
+              code,
+              adminId: userId,
+              deck: DEFAULT_DECK,
+              createdAt: serverTimestamp(),
+              // A real timestamp rather than serverTimestamp(): the rules compare it against
+              // request.time, and a pending sentinel has no value to compare.
+              expiresAt: Timestamp.fromMillis(Date.now() + SESSION_TTL_MS),
+            },
           },
           {
             url: `/sessions/${code}/participants/${userId}`,

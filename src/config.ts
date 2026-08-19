@@ -8,6 +8,13 @@ export const CARD_DECKS = {
 
 export type DeckKey = keyof typeof CARD_DECKS;
 
+// Deliberately not a member of any deck's `values`: "?" is not an estimate but a refusal to
+// give one, so it is drawn after the deck and left out of the statistics. Mirrored in
+// firebase/firestore.rules, which cannot import this file.
+export const UNSURE_CARD = '?';
+
+export type CardValue = number | typeof UNSURE_CARD;
+
 export const DEFAULT_DECK: DeckKey = 'modified';
 
 // A session's `deck` is a plain string in Firestore, so it can name a deck this build no longer
@@ -15,3 +22,24 @@ export const DEFAULT_DECK: DeckKey = 'modified';
 // would hand `undefined` to every read site and crash the room for everyone in it.
 export const deckKeyOf = (deck: string | undefined): DeckKey =>
   deck !== undefined && deck in CARD_DECKS ? (deck as DeckKey) : DEFAULT_DECK;
+
+// Mirrors the caps in firebase/firestore.rules — rules can't import this file, so both sides
+// have to be edited together. Enforcing them in the field as well is not belt-and-braces: past
+// the cap the write is simply denied, and a permission error is a poor way to learn that a name
+// was one character too long.
+export const NAME_MAX_LENGTH = 40;
+export const QUESTION_MAX_LENGTH = 200;
+
+// A room is a meeting, not a document: it stays writable for a working session and then stops,
+// so an abandoned room can't be voted in a month later. The admin can push the deadline back
+// while the room is still live.
+//
+// SESSION_MAX_EXTENSION_MS is the ceiling the rules enforce, and it is deliberately separate
+// from SESSION_TTL_MS: a short lifetime in development needs no rule change, because the rules
+// only cap how far ahead a deadline may be set, never how close.
+export const SESSION_MAX_EXTENSION_MS = 6 * 60 * 60 * 1000;
+
+export const SESSION_TTL_MS = import.meta.env.DEV ? 5 * 60 * 1000 : SESSION_MAX_EXTENSION_MS;
+
+// Proportional to the lifetime, or the warning would never be reachable in development.
+export const SESSION_EXPIRY_WARNING_MS = import.meta.env.DEV ? 60 * 1000 : 15 * 60 * 1000;

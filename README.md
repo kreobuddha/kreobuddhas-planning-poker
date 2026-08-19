@@ -13,6 +13,8 @@ project. Anyone can open a room there; nothing in it is private.
 ## Stack
 
 - React + TypeScript + Vite
+- [`@kreobuddha/ui`](https://github.com/kreobuddha/kreobuddha-ui) 1.0.0 — the component
+  library and design tokens the interface is built from
 - [Firebase](https://firebase.google.com) — Firestore, Realtime listeners, anonymous auth
 - react-router-dom
 
@@ -56,6 +58,21 @@ npm run test:rules
 The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
 CLAUDE.md for why.
 
+## Continuous integration
+
+Every pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `lint`,
+`format:check`, `build`, and the rules suite above, with a JDK and the Firestore emulator on the
+runner. It watches pull requests into `master` **and** into `release/**`, because work on a
+release is merged into its release branch first and only the finished release reaches `master` —
+a run limited to `master` would check nothing until it was too late to matter.
+
+"Every" includes the pull request that closes a release, even though `ci.yml` does not exist on
+`master` yet: for `pull_request` events GitHub takes the workflow from the merge ref rather than
+from the base branch, so the file on the release branch is what runs.
+
+`deploy.yml` runs the same rules suite before it publishes anything, as a gate rather than a
+formality: it deploys those very rules to the live demo a step later.
+
 ## The public demo
 
 The demo at <https://kreobuddha-planning-poker-demo.web.app> is deployed to
@@ -73,11 +90,16 @@ done once:
    Hosting Admin** role, and add the JSON as the repository secret `FIREBASE_SERVICE_ACCOUNT`.
    That role is deliberately narrow: the deploy publishes the site and cannot reach Firestore or
    its rules.
-3. In **Settings → Secrets and variables → Actions → Variables**, add the demo project's web
+3. Create a _second_ service account holding **Firebase Rules Admin** and nothing else, and add
+   its key as the repository secret `FIREBASE_RULES_SERVICE_ACCOUNT`. This is the one that
+   deploys `firebase/firestore.rules`. Two accounts rather than one wider one, on purpose: the
+   key that can rewrite the app's only security boundary should not also be the key that
+   publishes the site, and neither should be able to do the other's job if it leaks.
+4. In **Settings → Secrets and variables → Actions → Variables**, add the demo project's web
    config as six repository variables: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
    `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`,
    `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
-4. In **Authentication → Settings → Authorized domains**, confirm `<project>.web.app` is listed.
+5. In **Authentication → Settings → Authorized domains**, confirm `<project>.web.app` is listed.
    Firebase authorizes its own hosting domains, so there is normally nothing to add here; a custom
    domain would have to be added by hand, and without it anonymous sign-in is refused and the app
    never gets past "Loading…".
@@ -85,8 +107,8 @@ done once:
 **Variables, not secrets, and deliberately.** Every one of those six values is compiled into the
 JavaScript the workflow publishes, so anyone can read them out of the deployed bundle. A Firebase
 web config identifies a project; it does not authorise anything. What protects the data is
-`firebase/firestore.rules` and the authorized-domain list above. The service-account key in step 2
-is the one real secret here, and it never enters the bundle.
+`firebase/firestore.rules` and the authorized-domain list above. The service-account keys in steps 2
+and 3 are the real secrets here, and neither enters the bundle.
 
 Nothing else is needed to make a room link work: the `"source": "**"` rewrite in
 [`firebase.json`](firebase.json) hands every path to `index.html`, so `/room/JA7GLS` reaches the
@@ -98,7 +120,9 @@ path, and no `basename` on the router.
 Versions are tagged from CI, never by hand:
 
 1. Add a section to [`CHANGELOG.md`](CHANGELOG.md) under the version being cut, and set the same
-   version in `package.json`.
+   version in `package.json` **and** `package-lock.json` — update the lock with
+   `npm install --package-lock-only` rather than editing it by hand. A lock left behind is the
+   easiest way to ship a release whose recorded version disagrees with itself.
 2. Merge that to `master`.
 3. **Actions → Release → Run workflow**, entering the version.
 
@@ -108,8 +132,9 @@ sent to a package registry — this app is not a package.
 
 ## Optional: Claude Code preview config
 
-`.claude/` is gitignored. To let Claude Code start and drive the dev server itself, create
-`.claude/launch.json` locally:
+`.claude/` is gitignored except for `release.json`, which is checked in because the release
+workflow reads it. To let Claude Code start and drive the dev server itself, create
+`.claude/launch.json` locally — it stays out of the repository:
 
 ```json
 {
@@ -136,9 +161,22 @@ sent to a package registry — this app is not a package.
   filtered subset, so showing _who_ has voted and hiding _what_ they voted can't both come from
   the rules; showing progress won.
 - What the rules ([`firebase/firestore.rules`](firebase/firestore.rules)) do enforce: you can
-  only write your own vote, and only while the round is still open — so a revealed result
-  can't be rewritten afterwards.
-- Picking the card you already selected clears your vote and puts you back to _waiting_.
+  only write your own vote, and only while the round is open — so a revealed result can't be
+  rewritten while it stands. A reveal is not final, though: the admin can reopen a round, which
+  puts the cards back on the table with every vote already cast still in place.
+- Picking the card you already selected clears your vote and puts you back to _waiting_. "?" is a
+  vote like any other in that respect — it is cast and cleared the same way — but it is left out
+  of the average and the spread, and its author is named in the results as not counted.
+- A room has a deadline. Writes stop once it passes, reads do not: an expired room can still be
+  read, it just can't be voted in. The admin is warned beforehand and can push the deadline back
+  while the room is live, never further ahead than the ceiling the rules enforce. "Close room"
+  is the same state reached deliberately — it brings the deadline forward to now — so closed and
+  expired are one state rather than two, and neither can be undone.
+- The admin can hand the role to anyone already in the room. The rules check that the new admin
+  is a participant, because handing the room to a uid that never joined would strand it exactly
+  as losing the admin does.
+- Past rounds stay beside the room with the average they were estimated at, so a session reads as
+  a record of the meeting rather than one live question.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
   `onSnapshot` listeners on the `participants`, `rounds`, and `votes` collections.
 
@@ -159,3 +197,7 @@ firebase/
   firestore.rules            Security rules
   firestore.indexes.json     Composite index config (empty — none needed yet)
 ```
+
+## License
+
+[MIT](LICENSE).

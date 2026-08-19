@@ -29,7 +29,7 @@ import { queryError, toQueryError } from '@/store/queryError';
 
 // How a collection read is reduced before it reaches the cache. Ignored for document URLs,
 // which are inherently single.
-export type Select = 'array' | 'first' | 'ids';
+export type Select = 'array' | 'first';
 
 export interface ReadWriteArgs {
   url: string;
@@ -46,11 +46,6 @@ export interface ReadWriteArgs {
   // Turns a GET that found nothing — a missing document, or an empty `single` query — into an
   // error carrying this message, instead of a `null` the caller has to interpret.
   notFound?: string;
-  // Marks an endpoint whose live listener is the source of truth, so a failed initial read
-  // degrades to empty instead of erroring. Without this, a transient denial (see below) would
-  // leave the cache entry with no data, and `updateCachedData` is a no-op on an empty entry —
-  // the listener could never repair it.
-  streamed?: boolean;
 }
 
 interface BatchArgs {
@@ -90,7 +85,7 @@ const toEntity = (snap: { id: string; data: () => DocumentData | undefined }): D
 });
 
 // `single` implies 'first'. Shared so the initial fetch and the live stream reduce a snapshot
-// identically — otherwise a `single` + `streamed` endpoint would fetch one object and then
+// identically — otherwise a `single` subscribed endpoint would fetch one object and then
 // stream an array over it.
 export const effectiveSelect = (args: ReadWriteArgs): Select =>
   args.select ?? (args.single ? 'first' : 'array');
@@ -100,13 +95,9 @@ export const applySelect = (
   select: Select = 'array'
 ): unknown => {
   if (!('docs' in snap)) return snap.exists() ? toEntity(snap) : null;
-  if (select === 'ids') return snap.docs.map((d) => d.id);
   if (select === 'first') return snap.docs[0] ? toEntity(snap.docs[0]) : null;
   return snap.docs.map(toEntity);
 };
-
-const emptyFor = (args: ReadWriteArgs): unknown =>
-  !isCollection(args.url) || effectiveSelect(args) === 'first' ? null : [];
 
 const firebaseBaseQuery =
   (): BaseQueryFn<FirebaseQueryArgs, unknown, FetchBaseQueryError> => async (args) => {
@@ -146,21 +137,10 @@ const firebaseBaseQuery =
         }
       }
     } catch (e) {
-      // A streamed endpoint's read can be denied transiently: Firestore's latency compensation
-      // flips a local value (e.g. `round.revealed`) before the server commits, so the revealing
-      // client can out-run its own write against a rule that reads the server state. The
-      // listener retries and recovers, so don't poison the cache entry over it.
-      //
-      // `notFound` opts out: an endpoint that distinguishes "no such document" from "everything
-      // is fine, just empty" has a caller waiting on that distinction, and degrading to empty
-      // would leave it loading forever instead of reporting anything.
-      if (args.method !== 'BATCH' && args.streamed && args.notFound === undefined) {
-        console.warn(
-          `[firebaseBaseQuery] initial read of ${args.url} failed; awaiting listener`,
-          e
-        );
-        return { data: emptyFor(args) };
-      }
+      // A read that failed reports the failure, including on a subscribed endpoint: an empty
+      // room and an unreadable one must not look alike to the UI. Recovery is the listener's
+      // job — see the `upsert` note in firestoreStream, which repairs the entry from the first
+      // snapshot that arrives.
       return toQueryError(e, 'Request failed.');
     }
   };

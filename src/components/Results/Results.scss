@@ -26,7 +26,21 @@
   margin-top: 0.25rem;
 }
 
-.results__average {
+.results__card--aside {
+  border-style: dashed;
+
+  .results__value {
+    color: var(--kreo-text-muted);
+  }
+}
+
+.results__note {
+  font-size: 0.7rem;
+  color: var(--kreo-text-muted);
+  margin-top: 0.15rem;
+}
+
+.results__stats {
   color: var(--kreo-text-muted);
 
   strong {

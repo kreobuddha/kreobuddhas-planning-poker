@@ -1,0 +1,18 @@
+.room-sidebar {
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-lg);
+  padding: 1.25rem;
+}
+
+// Two rows the height of a participant line, so the panel does not resize under the reader when
+// the real list lands.
+.room-sidebar__placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+
+  > * {
+    height: 1.2rem;
+  }
+}

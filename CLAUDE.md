@@ -20,11 +20,12 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 
 ## Private knowledge and public boundaries
 
-- `../Unigine-KB.md` is a private local reference. It is not part of this project and must not be
-  copied, committed, pushed, quoted substantially, or linked from public documentation. Rustam may
-  later move it to a private repository, but only on an explicit request.
-- The private knowledge base may inform general engineering conventions, but public code and
-  documentation must be self-contained and must not require access to it.
+- Private reference material kept outside this repository — notes, audits, knowledge bases in
+  parent directories — is not a project source. It must not be copied, committed, pushed, quoted
+  substantially, or linked from public documentation, and it is not named in public files either:
+  naming a private document tells a reader it exists and who it came from.
+- Such material may inform general engineering conventions, but public code and documentation must
+  be self-contained and must never require access to it.
 - Never copy proprietary source code, assets, credentials, internal URLs, production data, or
   employer-specific fixtures into this repository. Reimplement general patterns with original
   code, naming, design, and synthetic data.
@@ -34,6 +35,11 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 ## Stack & structure
 
 - React + TypeScript + Vite
+- `@kreobuddha/ui` 1.0.0 — the component library and design tokens; the theme is pinned to
+  `data-kreo-theme="dark"` in `index.html`. Exports available: `Accordion`, `Alert`, `Badge`,
+  `Button`, `IconButton`, `Progress`, `Skeleton`, `Spinner`, `TextField`, `Textarea`,
+  `Select`, `Checkbox`, `Radio`, `Switch`, `FieldGroup`, `Tabs`, `ToastProvider`/`useToast`,
+  `Toggletip`, `Tooltip`, `Dialog`. Reach for one of these before hand-rolling markup.
 - Firebase (Firestore + Anonymous Auth) for data and realtime sync — see
   `firebase/firestore.rules` for the security model
 - Redux Toolkit + RTK Query for the endpoints layer (see "Endpoints layer" below) — deliberately
@@ -47,9 +53,14 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   `store/authApi.ts` (the `signInAnonymously` endpoint)
 - `src/lib/` — Firebase client init, session code generator, remembered participant name
 - `src/config.ts` — the card decks (`CARD_DECKS`, `DEFAULT_DECK`) and `deckKeyOf`, which falls
-  back to the default rather than trusting a `deck` string that came out of Firestore
+  back to the default rather than trusting a `deck` string that came out of Firestore; plus every
+  constant the client shares with the rules: `UNSURE_CARD`, `NAME_MAX_LENGTH`,
+  `QUESTION_MAX_LENGTH`, `SESSION_TTL_MS` and `SESSION_MAX_EXTENSION_MS`. **Rules can't import
+  this file**, so anything here with a counterpart in `firebase/firestore.rules` has to be
+  changed on both sides at once — the comments beside each constant say which
 - `src/types.ts` — domain interfaces (`ISession`, `IParticipant`, `IRound`, `IVote`)
-- `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section
+- `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section;
+  a section large enough to split keeps its own `components/` folder (Room does)
 - `src/main/endpoints/` — endpoints shared across sections (currently `sessionsApi.ts`,
   looking a session up by code)
 
@@ -76,11 +87,11 @@ Firestore never speaks HTTP — and it maps as:
 
 Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
 collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
-`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`,
-`'ids'`); `effectiveSelect` resolves it once so the fetch and the stream can't reduce the same
-snapshot differently. `notFound` turns a read that found nothing into an error, which is how
-`findSessionByCode` reports a bad code — and it also opts the endpoint out of the
-degrade-to-empty behaviour `streamed` otherwise applies to a failed initial read.
+`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`);
+`effectiveSelect` resolves it once so the fetch and the stream can't reduce the same snapshot
+differently. `notFound` turns a read that found nothing into an error, which is how
+`findSessionByCode` reports a bad code. A read that fails always reports the failure — an empty
+room and an unreadable one must not look alike to the UI.
 
 A session's join code IS its document id (`sessions/{CODE}`), so a room is reached with a `get`.
 That's what lets the rules deny `list` on `/sessions` outright, and it makes a code collision a
@@ -92,6 +103,12 @@ endpoint names its descriptor builder once and passes it to _both_ `query` and `
 the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
 drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
 meaningful) and stay live after.
+
+A subscribed endpoint also passes `streamFrom` its own
+`api.util.upsertQueryData(name, arg, value)` — the second argument. `updateCachedData` is a
+`produce` over existing data and a no-op on an entry that has none, so an entry whose initial
+read failed can only be repaired by upserting the first snapshot that arrives. That is what
+lets the room come back on its own after a lost connection instead of sitting on an error.
 
 Two things to keep in mind when editing this layer:
 
@@ -179,3 +196,47 @@ instead of relative paths). Beyond those:
   Rustam explicitly asks for that action.
 - When compacting context, preserve modified files, accepted decisions, pending work, blockers,
   Firebase/security implications, and verification commands.
+
+### Commit messages
+
+Commit subjects follow Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`, `ci:`,
+`refactor:`, with `!` before the colon for a breaking change. Scopes are not used. This was adopted
+on 2026-08-19; the history before it is free-form imperative and is never rewritten, so the log is
+mixed by design. The body still explains _why_ rather than _what_.
+
+### The release commands are the one exception
+
+`/release:start`, `/release:feature`, `/release:land`, `/release:status`, `/release:sync`,
+`/release:finish` and `/release:ship` (in `~/.claude/commands/release/`) carry a standing, narrow
+authorisation for the steps that come _before_ a pull request is merged. It applies only while one
+of those commands is running, and only to the actions listed here:
+
+- create a branch whose name matches `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/` or
+  `release/`;
+- commit to that branch;
+- push that branch to `origin`;
+- open a pull request;
+- merge a pull request whose base is a `release/*` branch once its checks are green, and delete the
+  branch it came from.
+
+This replaces the per-push confirmation for those steps and for nothing else. The rules above keep
+their full force everywhere else, and two of them matter more here than in a library:
+
+- **Merging into `master` is Rustam's action, and here the merge _is_ the deployment.**
+  `.github/workflows/deploy.yml` runs on every push to `master`: it rebuilds the site, publishes it
+  to Firebase Hosting and deploys `firebase/firestore.rules` — the only server-side boundary this
+  app has. A command prepares the release pull request, runs the gate, reports the review, and
+  stops with the exact merge command written out.
+- **The tag and the GitHub release are produced by `.github/workflows/release.yml` and by nothing
+  else.** Never run `git tag` and never push a tag. That workflow has no branch guard of its own,
+  so it is dispatched only with `--ref master`, only with the version named, and only after Rustam
+  confirms that exact version.
+- A change reaches a release branch through a feature branch and its pull request. The single
+  release commit written by `/release:finish` is the only commit made directly on a release branch,
+  and no commit is ever made directly on `master`.
+- No force-push, no rebase of a pushed branch, no `reset --hard`, no history rewriting, no deleting
+  a tag or a branch other than a feature branch whose pull request has just merged.
+- Outside a `/release:*` command none of this is authorised. A command run earlier in the session
+  does not authorise the same action later, and neither does a plan that mentions one.
+- If `.claude/release.json` is missing, unreadable, or its `schema` is not one the command
+  understands, the exception does not apply: stop and say so.

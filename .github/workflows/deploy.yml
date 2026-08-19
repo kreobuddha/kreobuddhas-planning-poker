@@ -56,11 +56,29 @@ jobs:
           fi
           npm run build
 
-      # The one real secret in this repository, and the reason the deploy is not a bare `npm`
-      # command: it is a service-account key, so it is written outside the checkout, with a umask
-      # that keeps it to this user, and never echoed. `firebase-tools` is already a devDependency,
-      # so no third-party action gets a look at it. The account holds Firebase Hosting Admin and
-      # nothing else — it cannot touch Firestore or its rules, which are deployed by hand.
+      # The Firestore emulator is a Java program, and the runner image's JDK is not something to
+      # depend on silently.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Without this the emulator jar is downloaded on every single run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}
+
+      # A gate, not a formality: the step below publishes these rules to the live demo, and this
+      # job is the last thing standing between a broken rule and the only server-side boundary
+      # the app has. It runs before either deploy so that a failure costs nothing.
+      - run: npm run test:rules
+
+      # A service-account key, and the reason the deploy is not a bare `npm` command: it is
+      # written outside the checkout, with a umask that keeps it to this user, and never echoed.
+      # `firebase-tools` is already a devDependency, so no third-party action gets a look at it.
+      # The account holds Firebase Hosting Admin and nothing else — it cannot touch Firestore or
+      # its rules, which have their own key in the step below.
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -74,4 +92,23 @@ jobs:
           (umask 077; printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$key")
           GOOGLE_APPLICATION_CREDENTIALS="$key" \
             npx firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+          rm -f "$key"
+
+      # Deployed from here rather than by hand, because a rules file that only exists in the
+      # repository drifts from what is actually enforced, and nothing in the app can tell you
+      # that it has. Its own service account, holding Firebase Rules Admin and nothing else: the
+      # key that can rewrite the security boundary is not also the key that publishes the site.
+      - name: Deploy the Firestore rules
+        env:
+          FIREBASE_RULES_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_RULES_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$FIREBASE_RULES_SERVICE_ACCOUNT" ]; then
+            echo "FIREBASE_RULES_SERVICE_ACCOUNT is not set — see README, 'The public demo'." >&2
+            exit 1
+          fi
+          key="$RUNNER_TEMP/firebase-rules-service-account.json"
+          (umask 077; printf '%s' "$FIREBASE_RULES_SERVICE_ACCOUNT" > "$key")
+          GOOGLE_APPLICATION_CREDENTIALS="$key" \
+            npx firebase deploy --only firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
           rm -f "$key"

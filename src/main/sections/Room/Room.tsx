@@ -1,11 +1,11 @@
 import './Room.scss';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { Alert, Button, Spinner, TextField, useToast } from '@kreobuddha/ui';
+import { Alert, Spinner, useToast } from '@kreobuddha/ui';
 import { CARD_DECKS, deckKeyOf } from '@/config';
-import type { DeckKey } from '@/config';
+import type { CardValue, DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
@@ -14,17 +14,23 @@ import {
   useAskQuestionMutation,
   useCastVoteMutation,
   useClearVoteMutation,
+  useReopenRoundMutation,
   useRevealVotesMutation,
+  useCloseSessionMutation,
+  useExtendSessionMutation,
   useSetDeckMutation,
-  useSubscribeLatestRoundQuery,
   useSubscribeParticipantsQuery,
+  useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
+  useTransferAdminMutation,
 } from '@/main/sections/Room/endpoints/roomApi';
-import VoteCards from '@/components/VoteCards/VoteCards';
-import ParticipantList from '@/components/ParticipantList/ParticipantList';
-import Results from '@/components/Results/Results';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
-import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
+import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
+import RoomSidebar from '@/main/sections/Room/components/RoomSidebar/RoomSidebar';
+import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
+import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
+import RoundPanel from '@/main/sections/Room/components/RoundPanel/RoundPanel';
+import SessionDeadline from '@/main/sections/Room/components/SessionDeadline/SessionDeadline';
 
 interface RoomProps {
   userId: string;
@@ -48,20 +54,37 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     isLoading: sessionLoading,
   } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [], isLoading: participantsLoading } = useSubscribeParticipantsQuery(
-    session?.id ?? skipToken
-  );
-  const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
+  const {
+    data: participants = [],
+    isLoading: participantsLoading,
+    isError: participantsUnreadable,
+  } = useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  // Newest first, so the head is the round being played and the tail is the history.
+  const { data: rounds = [] } = useSubscribeRoundsQuery(session?.id ?? skipToken);
+  const round = rounds[0] ?? null;
   const { data: votes = [] } = useSubscribeVotesQuery(
     session && round ? { sessionId: session.id, roundId: round.id } : skipToken
   );
 
-  const [askQuestion] = useAskQuestionMutation();
+  const [askQuestion, { isLoading: asking }] = useAskQuestionMutation();
   const [castVote, { isLoading: casting }] = useCastVoteMutation();
   const [clearVote, { isLoading: clearing }] = useClearVoteMutation();
-  const [revealVotes] = useRevealVotesMutation();
-  const [setDeck] = useSetDeckMutation();
+  const [revealVotes, { isLoading: revealing }] = useRevealVotesMutation();
+  const [reopenRound, { isLoading: reopening }] = useReopenRoundMutation();
+  const [setDeck, { isLoading: settingDeck }] = useSetDeckMutation();
   const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
+  const [extendSession, { isLoading: extending }] = useExtendSessionMutation();
+  const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
+  const [transferAdmin, { isLoading: handingOver }] = useTransferAdminMutation();
+
+  // A deadline passes on its own, and nothing is written when it does — so this is the one piece
+  // of room state that no snapshot will ever deliver. The tick only forces the comparison below
+  // to be made again; the deadline itself lives in the session document.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 5_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
@@ -83,7 +106,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   };
 
   // Picking the card you already hold clears the vote, which is the only way back to "waiting".
-  const handleVote = async (value: number): Promise<void> => {
+  const handleVote = async (value: CardValue): Promise<void> => {
     if (!session || !round || !me) return;
     const target = { sessionId: session.id, roundId: round.id, userId };
     try {
@@ -103,6 +126,42 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       await revealVotes({ sessionId: session.id, roundId: round.id }).unwrap();
     } catch (err) {
       reportFailure(err, 'Could not reveal votes.');
+    }
+  };
+
+  const handleReopen = async (): Promise<void> => {
+    if (!session || !round) return;
+    try {
+      await reopenRound({ sessionId: session.id, roundId: round.id }).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not reopen the round.');
+    }
+  };
+
+  const handleExtend = async (): Promise<void> => {
+    if (!session) return;
+    try {
+      await extendSession(session.id).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not extend this room.');
+    }
+  };
+
+  const handleCloseRoom = async (): Promise<void> => {
+    if (!session) return;
+    try {
+      await closeSession(session.id).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not close this room.');
+    }
+  };
+
+  const handleMakeAdmin = async (nextAdminId: string): Promise<void> => {
+    if (!session) return;
+    try {
+      await transferAdmin({ sessionId: session.id, userId: nextAdminId }).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not hand the room over.');
     }
   };
 
@@ -148,86 +207,106 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     );
   }
 
+  // An expired room is readable but not writable, so it says so instead of letting people vote
+  // into permission errors. Closing the room is the same state reached deliberately, which is why
+  // there is no second wording for it.
+  if (session.expiresAt !== undefined && Date.now() >= session.expiresAt) {
+    return (
+      <div className="room__error">
+        <Alert tone="info" title="This room has closed">
+          Sessions stay open for a few hours. The questions and the votes already cast are still
+          here to read, but nothing more can be written.
+        </Alert>
+      </div>
+    );
+  }
+
+  // Three distinct states, and they must stay distinct: while the list is still arriving the room
+  // renders with a placeholder sidebar, an unreadable list says so, and only a list that loaded
+  // and does not hold the reader means "you are not in this room yet". Offering the join form on
+  // an unreadable list would invite people to join a room they are already in.
+  if (participantsUnreadable) {
+    return (
+      <div className="room__error">
+        <Alert tone="warning" title="Connection lost">
+          Reconnecting… the room comes back on its own once the connection returns.
+        </Alert>
+      </div>
+    );
+  }
+
   if (!participantsLoading && !me) {
     return (
-      <div className="room room--joining">
-        <form onSubmit={handleJoin} className="room__join-form">
-          <h1>Join session {session.code}</h1>
-          <TextField
-            label="Your name"
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
-            fullWidth
-          />
-          <Button type="submit" loading={joining} disabled={!nameDraft.trim()}>
-            Join
-          </Button>
-        </form>
-      </div>
+      <JoinForm
+        code={session.code}
+        name={nameDraft}
+        busy={joining}
+        onNameChange={setNameDraft}
+        onSubmit={handleJoin}
+      />
     );
   }
 
   return (
     <div className="room">
-      <header className="room__header">
-        <Link to="/" className="room__back">
-          ← Home
-        </Link>
-        <div className="room__title-row">
-          <h1>Session {session.code}</h1>
-          <CopyLinkButton />
-        </div>
-        <p>
-          Share this code with your team to let them join.
-          {me && <span className="room__you">You are {me.name}</span>}
-        </p>
-      </header>
+      <RoomHeader code={session.code} youAre={me?.name ?? null} />
 
       <div className="room__body">
-        <aside className="room__sidebar">
-          <h2>Participants</h2>
-          <ParticipantList
-            participants={participants}
-            votedIds={votedIdsSet}
-            revealed={round?.revealed ?? false}
-            adminId={session.adminId}
-          />
-        </aside>
+        <RoomSidebar
+          participants={participants}
+          votedIds={votedIdsSet}
+          revealed={round?.revealed ?? false}
+          adminId={session.adminId}
+          loading={participantsLoading}
+          onMakeAdmin={isAdmin ? handleMakeAdmin : undefined}
+          handingOver={handingOver}
+          sessionId={session.id}
+          pastRounds={rounds.slice(1)}
+        />
 
         <main className="room__main">
-          {isAdmin && <DeckPicker value={deck} disabled={votingOpen} onChange={handleDeckChange} />}
+          {isAdmin && session.expiresAt !== undefined && (
+            <SessionDeadline
+              expiresAt={session.expiresAt}
+              extending={extending}
+              closing={closing}
+              onExtend={handleExtend}
+              onClose={handleCloseRoom}
+            />
+          )}
+
+          {isAdmin && (
+            <DeckPicker
+              value={deck}
+              disabled={votingOpen || settingDeck}
+              onChange={handleDeckChange}
+            />
+          )}
 
           {isAdmin && (!round || round.revealed) && (
-            <form onSubmit={handleAskQuestion} className="room__ask-form">
-              <h2>Ask a question</h2>
-              <TextField
-                label="What are we estimating?"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                fullWidth
-              />
-              <Button type="submit">Start voting</Button>
-            </form>
+            <AskQuestionForm
+              question={question}
+              busy={asking}
+              onQuestionChange={setQuestion}
+              onSubmit={handleAskQuestion}
+            />
           )}
 
           {round && (
-            <div className="round">
-              <h2 className="room__question">{round.question}</h2>
-
-              {!round.revealed && (
-                <>
-                  <VoteCards
-                    values={CARD_DECKS[deck].values}
-                    selected={myVote?.value ?? null}
-                    disabled={casting || clearing}
-                    onSelect={handleVote}
-                  />
-                  {isAdmin && <Button onClick={handleReveal}>Reveal cards</Button>}
-                </>
-              )}
-
-              {round.revealed && <Results votes={votes} participants={participants} />}
-            </div>
+            <RoundPanel
+              round={round}
+              deckValues={CARD_DECKS[deck].values}
+              votes={votes}
+              participants={participants}
+              myVote={myVote?.value ?? null}
+              isAdmin={isAdmin}
+              voting={casting || clearing}
+              revealing={revealing}
+              reopening={reopening}
+              onSelect={handleVote}
+              onReveal={handleReveal}
+              onReopen={handleReopen}
+            />
           )}
 
           {!round && !isAdmin && <p>Waiting for the admin to ask a question…</p>}
