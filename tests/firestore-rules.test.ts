@@ -17,10 +17,17 @@ const CODE = 'ABC123';
 const ADMIN = 'admin-uid';
 const MEMBER = 'member-uid';
 const OUTSIDER = 'outsider-uid';
+// Never joins anything and never votes anywhere else, so a test can ask what the rules make of
+// a complete stranger without another test having quietly made them a participant first.
+const STRANGER = 'stranger-uid';
 const OPEN_ROUND = 'round-open';
 const REVEALED_ROUND = 'round-revealed';
 
 const sessionPath = `sessions/${CODE}`;
+// A second room, with a different admin, purely to ask whether standing in one gives you
+// anything in the other.
+const OTHER_CODE = 'XYZ789';
+const otherSessionPath = `sessions/${OTHER_CODE}`;
 const votePath = (round: string, uid: string): string =>
   `${sessionPath}/rounds/${round}/votes/${uid}`;
 
@@ -34,6 +41,8 @@ let env: RulesTestEnvironment;
 const asUser = (uid: string): Firestore =>
   env.authenticatedContext(uid).firestore() as unknown as Firestore;
 
+const asAnon = (): Firestore => env.unauthenticatedContext().firestore() as unknown as Firestore;
+
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'planning-poker-rules-test',
@@ -46,6 +55,17 @@ before(async () => {
       code: CODE,
       adminId: ADMIN,
       deck: 'modified',
+      createdAt: Date.now(),
+    });
+    await setDoc(doc(db, otherSessionPath), {
+      code: OTHER_CODE,
+      adminId: OUTSIDER,
+      deck: 'fibonacci',
+      createdAt: Date.now(),
+    });
+    await setDoc(doc(db, `${otherSessionPath}/rounds/${OPEN_ROUND}`), {
+      question: 'Elsewhere',
+      revealed: false,
       createdAt: Date.now(),
     });
     await setDoc(doc(db, `${sessionPath}/participants/${MEMBER}`), {
@@ -96,6 +116,38 @@ describe('sessions', () => {
     // The vote rules read this back, so leave the deck as the fixture set it.
     await assertSucceeds(updateDoc(doc(asUser(ADMIN), sessionPath), { deck: 'modified' }));
   });
+
+  it('rejects a create carrying a field the model does not have', async () => {
+    const db = asUser(ADMIN);
+    const base = { adminId: ADMIN, deck: 'modified', createdAt: Date.now() };
+    await assertFails(
+      setDoc(doc(db, 'sessions/EXTRA1'), { ...base, code: 'EXTRA1', expiresAt: Date.now() })
+    );
+    // Not a `hasOnly` failure but the mirror of one: a subset is allowed by `hasOnly`, so what
+    // catches a missing deck is the deck check itself.
+    await assertFails(setDoc(doc(db, 'sessions/EXTRA2'), { adminId: ADMIN, code: 'EXTRA2' }));
+  });
+
+  it('cannot be deleted, by the admin or anyone else', async () => {
+    await assertFails(deleteDoc(doc(asUser(ADMIN), sessionPath)));
+    await assertFails(deleteDoc(doc(asUser(MEMBER), sessionPath)));
+  });
+
+  it('grants nothing in one room to the admin of another', async () => {
+    const intruder = { question: 'Not yours', revealed: false, createdAt: Date.now() };
+    await assertFails(updateDoc(doc(asUser(ADMIN), otherSessionPath), { deck: 'powers' }));
+    await assertFails(setDoc(doc(asUser(ADMIN), `${otherSessionPath}/rounds/intruder`), intruder));
+    await assertFails(
+      updateDoc(doc(asUser(ADMIN), `${otherSessionPath}/rounds/${OPEN_ROUND}`), {
+        revealed: true,
+      })
+    );
+
+    // ...while that room's own admin is unaffected. Restored immediately: `deckValues` is read
+    // back by the vote rules.
+    await assertSucceeds(updateDoc(doc(asUser(OUTSIDER), otherSessionPath), { deck: 'powers' }));
+    await assertSucceeds(updateDoc(doc(asUser(OUTSIDER), otherSessionPath), { deck: 'fibonacci' }));
+  });
 });
 
 describe('participants', () => {
@@ -111,6 +163,21 @@ describe('participants', () => {
       })
     );
   });
+
+  it('rejects an empty name and any field beyond name and joinedAt', async () => {
+    const db = asUser(STRANGER);
+    const path = `${sessionPath}/participants/${STRANGER}`;
+    await assertFails(setDoc(doc(db, path), { name: '', joinedAt: Date.now() }));
+    await assertFails(
+      setDoc(doc(db, path), { name: 'Stranger', joinedAt: Date.now(), role: 'observer' })
+    );
+  });
+
+  // There is no "leave the room" in this app, and this is why: a delete carries no
+  // `request.resource`, so the field checks on `write` cannot pass and the rule denies it.
+  it('cannot be removed, not even by the participant themselves', async () => {
+    await assertFails(deleteDoc(doc(asUser(MEMBER), `${sessionPath}/participants/${MEMBER}`)));
+  });
 });
 
 describe('rounds', () => {
@@ -121,6 +188,11 @@ describe('rounds', () => {
     await assertFails(
       updateDoc(doc(asUser(MEMBER), `${sessionPath}/rounds/${OPEN_ROUND}`), { revealed: true })
     );
+  });
+
+  it('cannot be deleted, so a revealed round stays on the record', async () => {
+    await assertFails(deleteDoc(doc(asUser(ADMIN), `${sessionPath}/rounds/${REVEALED_ROUND}`)));
+    await assertFails(deleteDoc(doc(asUser(MEMBER), `${sessionPath}/rounds/${OPEN_ROUND}`)));
   });
 });
 
@@ -158,5 +230,64 @@ describe('votes', () => {
       setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: 8, createdAt: Date.now() })
     );
     await assertFails(deleteDoc(doc(db, votePath(REVEALED_ROUND, MEMBER))));
+  });
+
+  it('reject a field the model does not have', async () => {
+    await assertFails(
+      setDoc(doc(asUser(MEMBER), votePath(OPEN_ROUND, MEMBER)), {
+        value: 5,
+        createdAt: Date.now(),
+        comment: 'gut feeling',
+      })
+    );
+  });
+
+  it('cannot be cleared on someone else behalf', async () => {
+    await assertFails(deleteDoc(doc(asUser(OUTSIDER), votePath(OPEN_ROUND, MEMBER))));
+  });
+
+  // Pins a gap rather than a guarantee. The rules check whose vote it is and whether the round
+  // is open, but never that the voter is in `participants` — so anyone signed in who knows a
+  // room code can vote in it without appearing in the list. It is visible in the UI (the vote
+  // shows up under "Unknown" at reveal) and it needs a deliberate decision, not a quiet fix
+  // here. When that decision is made, this assertion is the one that flips.
+  it('are accepted from someone who never joined the session', async () => {
+    const db = asUser(STRANGER);
+    await assertSucceeds(
+      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Date.now() })
+    );
+    await assertSucceeds(deleteDoc(doc(db, votePath(OPEN_ROUND, STRANGER))));
+  });
+});
+
+// Anonymous sign-in means every real user is authenticated before they see anything, so
+// `isSignedIn()` turns almost nobody away in practice. It is still the outermost ring of the
+// only server-side boundary this app has, and the browser cannot tell you whether it holds — a
+// denied read arrives looking exactly like an empty one. Hence: cheap, and worth stating.
+describe('unauthenticated access', () => {
+  it('is refused everywhere, read and write alike', async () => {
+    const db = asAnon();
+    await assertFails(getDoc(doc(db, sessionPath)));
+    await assertFails(getDocs(collection(db, `${sessionPath}/participants`)));
+    await assertFails(getDocs(collection(db, `${sessionPath}/rounds`)));
+    await assertFails(getDocs(collection(db, `${sessionPath}/rounds/${OPEN_ROUND}/votes`)));
+
+    await assertFails(
+      setDoc(doc(db, 'sessions/NOAUTH'), {
+        code: 'NOAUTH',
+        adminId: STRANGER,
+        deck: 'modified',
+        createdAt: Date.now(),
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, `${sessionPath}/participants/${STRANGER}`), {
+        name: 'Nobody',
+        joinedAt: Date.now(),
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Date.now() })
+    );
   });
 });
