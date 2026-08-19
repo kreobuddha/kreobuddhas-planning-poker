@@ -60,16 +60,15 @@ CLAUDE.md for why.
 
 ## Continuous integration
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `lint`, `format:check`, `build`, and
-the rules suite above, with a JDK and the Firestore emulator on the runner. It watches pull
-requests into `master` **and** into `release/**`, because work on a release is merged into its
-release branch first and only the finished release reaches `master` — a run limited to `master`
-would check nothing until it was too late to matter.
+Every pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `lint`,
+`format:check`, `build`, and the rules suite above, with a JDK and the Firestore emulator on the
+runner. It watches pull requests into `master` **and** into `release/**`, because work on a
+release is merged into its release branch first and only the finished release reaches `master` —
+a run limited to `master` would check nothing until it was too late to matter.
 
-One gap is worth naming rather than glossing over: GitHub takes a workflow from the pull request's
-_base_ branch, and `ci.yml` has not reached `master` yet, so the pull request that closes a release
-is the one pull request it does not check. Until the first release merge carries the file across,
-that one is verified locally instead.
+"Every" includes the pull request that closes a release, even though `ci.yml` does not exist on
+`master` yet: for `pull_request` events GitHub takes the workflow from the merge ref rather than
+from the base branch, so the file on the release branch is what runs.
 
 `deploy.yml` runs the same rules suite before it publishes anything, as a gate rather than a
 formality: it deploys those very rules to the live demo a step later.
@@ -121,7 +120,9 @@ path, and no `basename` on the router.
 Versions are tagged from CI, never by hand:
 
 1. Add a section to [`CHANGELOG.md`](CHANGELOG.md) under the version being cut, and set the same
-   version in `package.json`.
+   version in `package.json` **and** `package-lock.json` — update the lock with
+   `npm install --package-lock-only` rather than editing it by hand. A lock left behind is the
+   easiest way to ship a release whose recorded version disagrees with itself.
 2. Merge that to `master`.
 3. **Actions → Release → Run workflow**, entering the version.
 
@@ -131,8 +132,9 @@ sent to a package registry — this app is not a package.
 
 ## Optional: Claude Code preview config
 
-`.claude/` is gitignored. To let Claude Code start and drive the dev server itself, create
-`.claude/launch.json` locally:
+`.claude/` is gitignored except for `release.json`, which is checked in because the release
+workflow reads it. To let Claude Code start and drive the dev server itself, create
+`.claude/launch.json` locally — it stays out of the repository:
 
 ```json
 {
@@ -159,9 +161,22 @@ sent to a package registry — this app is not a package.
   filtered subset, so showing _who_ has voted and hiding _what_ they voted can't both come from
   the rules; showing progress won.
 - What the rules ([`firebase/firestore.rules`](firebase/firestore.rules)) do enforce: you can
-  only write your own vote, and only while the round is still open — so a revealed result
-  can't be rewritten afterwards.
-- Picking the card you already selected clears your vote and puts you back to _waiting_.
+  only write your own vote, and only while the round is open — so a revealed result can't be
+  rewritten while it stands. A reveal is not final, though: the admin can reopen a round, which
+  puts the cards back on the table with every vote already cast still in place.
+- Picking the card you already selected clears your vote and puts you back to _waiting_. "?" is a
+  vote like any other in that respect — it is cast and cleared the same way — but it is left out
+  of the average and the spread, and its author is named in the results as not counted.
+- A room has a deadline. Writes stop once it passes, reads do not: an expired room can still be
+  read, it just can't be voted in. The admin is warned beforehand and can push the deadline back
+  while the room is live, never further ahead than the ceiling the rules enforce. "Close room"
+  is the same state reached deliberately — it brings the deadline forward to now — so closed and
+  expired are one state rather than two, and neither can be undone.
+- The admin can hand the role to anyone already in the room. The rules check that the new admin
+  is a participant, because handing the room to a uid that never joined would strand it exactly
+  as losing the admin does.
+- Past rounds stay beside the room with the average they were estimated at, so a session reads as
+  a record of the meeting rather than one live question.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
   `onSnapshot` listeners on the `participants`, `rounds`, and `votes` collections.
 
