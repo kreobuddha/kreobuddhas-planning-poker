@@ -84,10 +84,10 @@ not when an API does, because there is no public API here.
   nothing this app can see: the components it uses have the same props, and every design token
   keeps its name and its value. What did change is the stylesheet, which lost a duplicated token
   block and halved in size.
-- The rules suite grew from 8 cases to 21: unauthenticated access, isolation between sessions,
-  deletions, `hasOnly` violations, an empty participant name, and everything the new round rules
-  now refuse. One of the new cases documents a gap rather than a guarantee — someone who never
-  joined a session can still cast a vote in it.
+- The rules suite grew from 9 cases to 28: unauthenticated access, isolation between sessions,
+  deletions, `hasOnly` violations, an empty participant name, everything the new round rules now
+  refuse, and the whole of the session lifetime and the admin handover. One of the cases documents
+  a gap rather than a guarantee — someone who never joined a session can still cast a vote in it.
 
 ### Removed
 

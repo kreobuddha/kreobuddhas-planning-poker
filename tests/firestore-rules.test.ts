@@ -379,6 +379,11 @@ describe('rounds', () => {
 
     await assertFails(updateDoc(doc(db, path), { question: 'Asked differently' }));
     await assertFails(updateDoc(doc(db, path), { revealed: true, question: 'Both at once' }));
+
+    // `revealed` drives whether votes are still accepted, so the rules type it rather than
+    // trusting the only client that writes it. Nothing but a bool gets through.
+    await assertFails(updateDoc(doc(db, path), { revealed: 'true' }));
+    await assertFails(updateDoc(doc(db, path), { revealed: 1 }));
   });
 
   it('cannot be deleted, so a revealed round stays on the record', async () => {
