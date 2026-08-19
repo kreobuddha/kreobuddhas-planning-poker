@@ -190,13 +190,13 @@ instead of relative paths). Beyond those:
 Commit subjects follow Conventional Commits — `feat:`, `fix:`, `docs:`, `chore:`, `ci:`,
 `refactor:`, with `!` before the colon for a breaking change. Scopes are not used. This was adopted
 on 2026-08-19; the history before it is free-form imperative and is never rewritten, so the log is
-mixed by design. The body still explains *why* rather than *what*.
+mixed by design. The body still explains _why_ rather than _what_.
 
 ### The release commands are the one exception
 
 `/release:start`, `/release:feature`, `/release:land`, `/release:status`, `/release:sync`,
 `/release:finish` and `/release:ship` (in `~/.claude/commands/release/`) carry a standing, narrow
-authorisation for the steps that come *before* a pull request is merged. It applies only while one
+authorisation for the steps that come _before_ a pull request is merged. It applies only while one
 of those commands is running, and only to the actions listed here:
 
 - create a branch whose name matches `feat/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/` or
@@ -210,7 +210,7 @@ of those commands is running, and only to the actions listed here:
 This replaces the per-push confirmation for those steps and for nothing else. The rules above keep
 their full force everywhere else, and two of them matter more here than in a library:
 
-- **Merging into `master` is Rustam's action, and here the merge *is* the deployment.**
+- **Merging into `master` is Rustam's action, and here the merge _is_ the deployment.**
   `.github/workflows/deploy.yml` runs on every push to `master`: it rebuilds the site, publishes it
   to Firebase Hosting and deploys `firebase/firestore.rules` — the only server-side boundary this
   app has. A command prepares the release pull request, runs the gate, reports the review, and
