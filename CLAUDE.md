@@ -34,6 +34,11 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 ## Stack & structure
 
 - React + TypeScript + Vite
+- `@kreobuddha/ui` 1.0.0 — the component library and design tokens; the theme is pinned to
+  `data-kreo-theme="dark"` in `index.html`. Exports available: `Accordion`, `Alert`, `Badge`,
+  `Button`, `IconButton`, `Progress`, `Skeleton`, `Spinner`, `TextField`, `Textarea`,
+  `Select`, `Checkbox`, `Radio`, `Switch`, `FieldGroup`, `Tabs`, `ToastProvider`/`useToast`,
+  `Toggletip`, `Tooltip`, `Dialog`. Reach for one of these before hand-rolling markup.
 - Firebase (Firestore + Anonymous Auth) for data and realtime sync — see
   `firebase/firestore.rules` for the security model
 - Redux Toolkit + RTK Query for the endpoints layer (see "Endpoints layer" below) — deliberately

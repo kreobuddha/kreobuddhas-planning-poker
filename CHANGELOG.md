@@ -7,6 +7,13 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Changed
+
+- `@kreobuddha/ui` moved from `0.19.0` to `1.0.0`. The library's first stable major changes
+  nothing this app can see: the components it uses have the same props, and every design
+  token keeps its name and its value. What did change is the stylesheet, which lost a
+  duplicated token block and halved in size.
+
 ## [0.2.0] — 2026-08-18
 
 The interface is now built out of [`@kreobuddha/ui`](https://github.com/kreobuddha/kreobuddha-ui)
