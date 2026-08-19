@@ -1,0 +1,61 @@
+name: CI
+
+# Everything that used to be checked only after a merge. `master` is the deployed state of the
+# app, so finding out there that the build is broken is finding out in production.
+#
+# `release/**` is in the list deliberately and is not optional: work on a release goes through
+# pull requests into its release branch, and only the finished release reaches `master`. A run
+# limited to `master` would therefore check nothing until the whole release was already written.
+on:
+  pull_request:
+    branches: [master, 'release/**']
+
+# Actions are pinned to a commit with the version beside it: a tag is a movable pointer and a
+# commit is not.
+
+permissions:
+  contents: read
+
+# A pull request that gets a second push has no use for the first run's answer.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+      - run: npm run format:check
+
+      # No Firebase config is passed. The build only inlines those values; nothing in it talks to
+      # a project, so a pull request does not need the demo's credentials to prove it compiles.
+      - run: npm run build
+
+      # The Firestore emulator is a Java program, and the runner image's JDK is not something to
+      # depend on silently.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Without this the emulator jar is downloaded on every single run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}
+
+      # The rules are the only server-side boundary this app has, and a denied read is
+      # indistinguishable from an empty one in the browser — so this suite is the only thing that
+      # can tell a hole from a quiet afternoon. See CLAUDE.md.
+      - run: npm run test:rules
