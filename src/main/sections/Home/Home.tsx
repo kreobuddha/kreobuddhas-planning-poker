@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, TextField } from '@kreobuddha/ui';
+import { NAME_MAX_LENGTH } from '@/config';
 import { generateSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
 import {
@@ -81,6 +82,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
         label="Your name"
         hint="Everyone in the room sees this."
         value={name}
+        maxLength={NAME_MAX_LENGTH}
         onChange={(e) => setName(e.target.value)}
         fullWidth
       />

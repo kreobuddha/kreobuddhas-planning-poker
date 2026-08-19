@@ -4,38 +4,6 @@
   padding: 2.5rem 1.5rem;
 }
 
-.room__header p {
-  color: var(--kreo-text-muted);
-  margin: 0 0 2rem;
-}
-
-.room__back {
-  display: inline-block;
-  margin-bottom: 0.75rem;
-  color: var(--kreo-text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-
-  &:hover {
-    color: var(--kreo-text-primary);
-  }
-}
-
-.room__title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.room__you {
-  margin-left: 0.5rem;
-  padding-left: 0.5rem;
-  border-left: 1px solid var(--kreo-border-default);
-  color: var(--kreo-text-primary);
-}
-
 .room__body {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -47,47 +15,11 @@
   }
 }
 
-.room__sidebar {
-  background: var(--kreo-surface-card);
-  border: 1px solid var(--kreo-border-default);
-  border-radius: var(--kreo-radius-lg);
-  padding: 1.25rem;
-}
-
 .room__main {
   background: var(--kreo-surface-card);
   border: 1px solid var(--kreo-border-default);
   border-radius: var(--kreo-radius-lg);
   padding: 1.75rem;
-}
-
-.room__ask-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.room__question {
-  margin-bottom: 1.5rem;
-}
-
-.room--joining {
-  max-width: 420px;
-}
-
-.room__join-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: var(--kreo-surface-card);
-  border: 1px solid var(--kreo-border-default);
-  border-radius: var(--kreo-radius-lg);
-  padding: 1.75rem;
-
-  h1 {
-    margin: 0;
-    font-size: 1.35rem;
-  }
 }
 
 .room__loading,
