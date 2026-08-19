@@ -14,6 +14,26 @@ not when an API does, because there is no public API here.
   `noImplicitAny` found nothing to fix in `src/`, which is what the `?? null` and `?.` habits
   throughout were already buying. `tests/` had never been in any `tsconfig` at all, so
   `tsc -b` now covers it too.
+- **Pull requests are checked before they land.** `lint`, `format:check` and `build` used to run
+  only after a merge to `master` — which is the deployed state of the app. A new `ci.yml` runs
+  them on every pull request, into `master` and into `release/**` alike, and adds the Firestore
+  rules suite, which had never run in CI at all.
+- **The Firestore rules deploy from CI** instead of by hand, so the file in the repository can no
+  longer drift from what is actually enforced. `npm run test:rules` runs first as a gate, and the
+  rules get their own service account rather than widening the one that publishes the site.
+- The rules suite grew from 8 cases to 19: unauthenticated access, isolation between sessions,
+  deletions, `hasOnly` violations, and an empty participant name. One of the new cases documents
+  a gap rather than a guarantee — someone who never joined a session can still cast a vote in it.
+
+### Removed
+
+- `docs/kb-audit.md`, a stale snapshot that described a former employer's codebase in a public
+  repository, and the reference to a private knowledge base in `docs/code-rules.md`.
+- `public/icons.svg`, referenced from nowhere, and the never-imported `RootDispatch` export.
+
+### Added
+
+- `LICENSE` (MIT).
 - `@kreobuddha/ui` moved from `0.19.0` to `1.0.0`. The library's first stable major changes
   nothing this app can see: the components it uses have the same props, and every design
   token keeps its name and its value. What did change is the stylesheet, which lost a
