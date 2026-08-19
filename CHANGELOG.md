@@ -7,6 +7,8 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-19
+
 ### Fixed
 
 - **A room could not be created at all in 0.3.0.** Creating one writes the session document and
