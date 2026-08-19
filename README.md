@@ -73,6 +73,11 @@ from the base branch, so the file on the release branch is what runs.
 `deploy.yml` runs the same rules suite before it publishes anything, as a gate rather than a
 formality: it deploys those very rules to the live demo a step later.
 
+The rules go out **before** the site. Either order leaves a moment where half a release is live,
+so the choice is which half: rules first leaves the old app running against the new rules — which
+is what those rules were reviewed against anyway — while site first leaves a new app asking a
+boundary that has not learned to allow it yet.
+
 ## The public demo
 
 The demo at <https://kreobuddha-planning-poker-demo.web.app> is deployed to

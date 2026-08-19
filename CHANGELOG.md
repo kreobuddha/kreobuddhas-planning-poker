@@ -21,6 +21,14 @@ not when an API does, because there is no public API here.
   about the one path every room is created through. It now exercises the batch the app actually
   writes.
 
+### Changed
+
+- **The deploy publishes the rules before the site.** Either order leaves a moment where half a
+  release is live, so the only question is which half. Rules first leaves the old app running
+  against the new rules, which is what those rules were reviewed against anyway; site first
+  leaves a new app asking a boundary that has not learned to allow it yet — which is precisely
+  how 0.3.0 reached the demo with no way to create a room.
+
 ## [0.3.0] — 2026-08-19
 
 ### Added
