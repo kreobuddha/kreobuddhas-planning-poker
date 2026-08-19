@@ -1,8 +1,8 @@
 # Code rules
 
-Personal style rules for this repo, distilled from prior production work (see
-`../../Unigine-KB.md` for the source). These apply on top of the general conventions in
-[CLAUDE.md](../CLAUDE.md) and should be followed by any AI session working here.
+Personal style rules for this repo, distilled from prior production work. These apply on top of
+the general conventions in [CLAUDE.md](../CLAUDE.md) and should be followed by any AI session
+working here.
 
 ## 1. Arrow functions only, with explicit return types
 

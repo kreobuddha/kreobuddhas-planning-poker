@@ -58,6 +58,17 @@ npm run test:rules
 The emulator needs a JDK on your PATH (`brew install openjdk`). Nothing else is tested; see
 CLAUDE.md for why.
 
+## Continuous integration
+
+Every pull request runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `lint`,
+`format:check`, `build`, and the rules suite above, with a JDK and the Firestore emulator on the
+runner. It watches pull requests into `master` **and** into `release/**`, because work on a
+release is merged into its release branch first and only the finished release reaches `master` —
+a run limited to `master` would check nothing until it was too late to matter.
+
+`deploy.yml` runs the same rules suite before it publishes anything, as a gate rather than a
+formality: it deploys those very rules to the live demo a step later.
+
 ## The public demo
 
 The demo at <https://kreobuddha-planning-poker-demo.web.app> is deployed to
@@ -75,11 +86,16 @@ done once:
    Hosting Admin** role, and add the JSON as the repository secret `FIREBASE_SERVICE_ACCOUNT`.
    That role is deliberately narrow: the deploy publishes the site and cannot reach Firestore or
    its rules.
-3. In **Settings → Secrets and variables → Actions → Variables**, add the demo project's web
+3. Create a _second_ service account holding **Firebase Rules Admin** and nothing else, and add
+   its key as the repository secret `FIREBASE_RULES_SERVICE_ACCOUNT`. This is the one that
+   deploys `firebase/firestore.rules`. Two accounts rather than one wider one, on purpose: the
+   key that can rewrite the app's only security boundary should not also be the key that
+   publishes the site, and neither should be able to do the other's job if it leaks.
+4. In **Settings → Secrets and variables → Actions → Variables**, add the demo project's web
    config as six repository variables: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
    `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`,
    `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
-4. In **Authentication → Settings → Authorized domains**, confirm `<project>.web.app` is listed.
+5. In **Authentication → Settings → Authorized domains**, confirm `<project>.web.app` is listed.
    Firebase authorizes its own hosting domains, so there is normally nothing to add here; a custom
    domain would have to be added by hand, and without it anonymous sign-in is refused and the app
    never gets past "Loading…".
@@ -87,8 +103,8 @@ done once:
 **Variables, not secrets, and deliberately.** Every one of those six values is compiled into the
 JavaScript the workflow publishes, so anyone can read them out of the deployed bundle. A Firebase
 web config identifies a project; it does not authorise anything. What protects the data is
-`firebase/firestore.rules` and the authorized-domain list above. The service-account key in step 2
-is the one real secret here, and it never enters the bundle.
+`firebase/firestore.rules` and the authorized-domain list above. The service-account keys in steps 2
+and 3 are the real secrets here, and neither enters the bundle.
 
 Nothing else is needed to make a room link work: the `"source": "**"` rewrite in
 [`firebase.json`](firebase.json) hands every path to `index.html`, so `/room/JA7GLS` reaches the
@@ -161,3 +177,7 @@ firebase/
   firestore.rules            Security rules
   firestore.indexes.json     Composite index config (empty — none needed yet)
 ```
+
+## License
+
+[MIT](LICENSE).
