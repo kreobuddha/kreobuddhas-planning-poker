@@ -20,11 +20,12 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 
 ## Private knowledge and public boundaries
 
-- `../Unigine-KB.md` is a private local reference. It is not part of this project and must not be
-  copied, committed, pushed, quoted substantially, or linked from public documentation. Rustam may
-  later move it to a private repository, but only on an explicit request.
-- The private knowledge base may inform general engineering conventions, but public code and
-  documentation must be self-contained and must not require access to it.
+- Private reference material kept outside this repository — notes, audits, knowledge bases in
+  parent directories — is not a project source. It must not be copied, committed, pushed, quoted
+  substantially, or linked from public documentation, and it is not named in public files either:
+  naming a private document tells a reader it exists and who it came from.
+- Such material may inform general engineering conventions, but public code and documentation must
+  be self-contained and must never require access to it.
 - Never copy proprietary source code, assets, credentials, internal URLs, production data, or
   employer-specific fixtures into this repository. Reimplement general patterns with original
   code, naming, design, and synthetic data.
