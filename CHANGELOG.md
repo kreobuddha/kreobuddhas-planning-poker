@@ -12,10 +12,20 @@ not when an API does, because there is no public API here.
 - **Reopening a round.** After a reveal the admin can put the same question back to the table:
   the cards come back, every vote already cast is still there, and anyone can change their mind.
   Previously a revealed round was final and the only way on was a new question.
+- **The room keeps its history.** Previous questions sit beside the participants with the average
+  they were estimated at, so a session is a record of the meeting rather than one live question.
+  Only the latest round was ever read before.
 - `LICENSE` (MIT).
 
 ### Changed
 
+- **A room that cannot be read says so, and repairs itself.** A failed read used to degrade to an
+  empty list, which the room could not tell apart from a room you had not joined — so a lost
+  connection greeted you with a form inviting you to join a room you were already in. Reads now
+  report their failure, the room shows "connection lost" while it lasts, and the live listener
+  writes the first snapshot it receives back into the failed entry, so the room comes back on its
+  own once the connection does.
+- **The participant list is ordered by arrival** instead of by whatever order Firestore returned.
 - **TypeScript runs in `strict` mode**, and the Firestore rules suite is type-checked with
   everything else. The application code needed no changes to pass — `strictNullChecks` and
   `noImplicitAny` found nothing to fix in `src/`, which is what the `?? null` and `?.` habits
@@ -58,7 +68,8 @@ not when an API does, because there is no public API here.
 
 - `docs/kb-audit.md`, a stale snapshot that described a former employer's codebase in a public
   repository, and the reference to a private knowledge base in `docs/code-rules.md`.
-- `public/icons.svg`, referenced from nowhere, and the never-imported `RootDispatch` export.
+- `public/icons.svg`, referenced from nowhere, the never-imported `RootDispatch` export, and the
+  unused `select: 'ids'` branch of the query layer.
 
 ## [0.2.0] — 2026-08-18
 

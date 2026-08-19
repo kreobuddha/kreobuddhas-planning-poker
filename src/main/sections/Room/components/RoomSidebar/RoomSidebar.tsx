@@ -2,7 +2,8 @@ import './RoomSidebar.scss';
 import type { ReactElement } from 'react';
 import { Skeleton } from '@kreobuddha/ui';
 import ParticipantList from '@/components/ParticipantList/ParticipantList';
-import type { IParticipant } from '@/types';
+import RoundHistory from '@/main/sections/Room/components/RoundHistory/RoundHistory';
+import type { IParticipant, IRound } from '@/types';
 
 interface RoomSidebarProps {
   participants: IParticipant[];
@@ -10,6 +11,8 @@ interface RoomSidebarProps {
   revealed: boolean;
   adminId: string;
   loading: boolean;
+  sessionId: string;
+  pastRounds: IRound[];
 }
 
 const RoomSidebar = ({
@@ -18,6 +21,8 @@ const RoomSidebar = ({
   revealed,
   adminId,
   loading,
+  sessionId,
+  pastRounds,
 }: RoomSidebarProps): ReactElement => {
   return (
     <aside className="room-sidebar">
@@ -38,6 +43,8 @@ const RoomSidebar = ({
           adminId={adminId}
         />
       )}
+
+      <RoundHistory sessionId={sessionId} rounds={pastRounds} />
     </aside>
   );
 };

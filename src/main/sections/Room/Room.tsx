@@ -17,8 +17,8 @@ import {
   useReopenRoundMutation,
   useRevealVotesMutation,
   useSetDeckMutation,
-  useSubscribeLatestRoundQuery,
   useSubscribeParticipantsQuery,
+  useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
 } from '@/main/sections/Room/endpoints/roomApi';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
@@ -50,10 +50,14 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     isLoading: sessionLoading,
   } = useFindSessionByCodeQuery(code ? code.toUpperCase() : skipToken);
 
-  const { data: participants = [], isLoading: participantsLoading } = useSubscribeParticipantsQuery(
-    session?.id ?? skipToken
-  );
-  const { data: round = null } = useSubscribeLatestRoundQuery(session?.id ?? skipToken);
+  const {
+    data: participants = [],
+    isLoading: participantsLoading,
+    isError: participantsUnreadable,
+  } = useSubscribeParticipantsQuery(session?.id ?? skipToken);
+  // Newest first, so the head is the round being played and the tail is the history.
+  const { data: rounds = [] } = useSubscribeRoundsQuery(session?.id ?? skipToken);
+  const round = rounds[0] ?? null;
   const { data: votes = [] } = useSubscribeVotesQuery(
     session && round ? { sessionId: session.id, roundId: round.id } : skipToken
   );
@@ -160,6 +164,20 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     );
   }
 
+  // Three distinct states, and they must stay distinct: while the list is still arriving the room
+  // renders with a placeholder sidebar, an unreadable list says so, and only a list that loaded
+  // and does not hold the reader means "you are not in this room yet". Offering the join form on
+  // an unreadable list would invite people to join a room they are already in.
+  if (participantsUnreadable) {
+    return (
+      <div className="room__error">
+        <Alert tone="warning" title="Connection lost">
+          Reconnecting… the room comes back on its own once the connection returns.
+        </Alert>
+      </div>
+    );
+  }
+
   if (!participantsLoading && !me) {
     return (
       <JoinForm
@@ -183,6 +201,8 @@ const Room = ({ userId }: RoomProps): ReactElement => {
           revealed={round?.revealed ?? false}
           adminId={session.adminId}
           loading={participantsLoading}
+          sessionId={session.id}
+          pastRounds={rounds.slice(1)}
         />
 
         <main className="room__main">

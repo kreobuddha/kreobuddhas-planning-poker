@@ -9,14 +9,15 @@ import { streamFrom } from '@/store/firestoreStream';
 const sessionByCodeUrl = (code: string): ReadWriteArgs => ({
   url: `/sessions/${code.toUpperCase()}`,
   notFound: 'Session not found.',
-  streamed: true,
 });
 
 export const sessionsApi = emptyApi.injectEndpoints({
   endpoints: (builder) => ({
     findSessionByCode: builder.query<ISession, string>({
       query: sessionByCodeUrl,
-      onCacheEntryAdded: streamFrom<string, ISession>(sessionByCodeUrl),
+      onCacheEntryAdded: streamFrom<string, ISession>(sessionByCodeUrl, (dispatch, code, value) => {
+        dispatch(sessionsApi.util.upsertQueryData('findSessionByCode', code, value));
+      }),
     }),
   }),
   overrideExisting: false,

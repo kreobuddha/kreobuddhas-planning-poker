@@ -1,0 +1,19 @@
+.round-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+
+  // The average is one short token and must never wrap; the question is the only part that
+  // gives up space in a narrow sidebar.
+  > * {
+    flex: 0 0 auto;
+  }
+}
+
+.round-history-item__question {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
