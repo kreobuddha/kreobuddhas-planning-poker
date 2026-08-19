@@ -9,6 +9,11 @@ not when an API does, because there is no public API here.
 
 ### Changed
 
+- **TypeScript runs in `strict` mode**, and the Firestore rules suite is type-checked with
+  everything else. The application code needed no changes to pass — `strictNullChecks` and
+  `noImplicitAny` found nothing to fix in `src/`, which is what the `?? null` and `?.` habits
+  throughout were already buying. `tests/` had never been in any `tsconfig` at all, so
+  `tsc -b` now covers it too.
 - `@kreobuddha/ui` moved from `0.19.0` to `1.0.0`. The library's first stable major changes
   nothing this app can see: the components it uses have the same props, and every design
   token keeps its name and its value. What did change is the stylesheet, which lost a

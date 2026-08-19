@@ -14,10 +14,14 @@
     "noEmit": true,
 
     /* Linting */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  // The Firestore rules suite lives here rather than in its own project: it is Node-side
+  // TypeScript like the Vite config, and `tsc -b` is what type-checks it at all — `node --test`
+  // strips the types without looking at them.
+  "include": ["vite.config.ts", "tests"]
 }

@@ -26,7 +26,13 @@ const votePath = (round: string, uid: string): string =>
 
 let env: RulesTestEnvironment;
 
-const asUser = (uid: string): Firestore => env.authenticatedContext(uid).firestore();
+// `firestore()` hands back a modular `Firestore` — that is what the emulator gives us and what
+// every `doc()` / `getDocs()` call below relies on — but `@firebase/rules-unit-testing` still
+// declares its return as the *compat* `firebase.firestore.Firestore`. The cast corrects the
+// library's own declaration; it is the one place this suite has to, and it changes nothing at
+// runtime.
+const asUser = (uid: string): Firestore =>
+  env.authenticatedContext(uid).firestore() as unknown as Firestore;
 
 before(async () => {
   env = await initializeTestEnvironment({
