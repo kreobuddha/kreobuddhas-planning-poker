@@ -74,8 +74,8 @@ const SessionDeadline = ({
           </>
         }
       >
-        Voting stops immediately and cannot be resumed — a closed room is an expired one. The
-        questions and the votes already cast stay readable.
+        Voting stops immediately and cannot be resumed — a closed room is an expired one. Everyone
+        in the room, you included, is taken back to the home page.
       </Dialog>
     </div>
   );

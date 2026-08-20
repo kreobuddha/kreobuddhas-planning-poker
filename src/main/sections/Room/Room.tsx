@@ -1,10 +1,10 @@
 import './Room.scss';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { Alert, Spinner, useToast } from '@kreobuddha/ui';
-import { CARD_DECKS, deckKeyOf, PRESENCE_TIMEOUT_MS } from '@/config';
+import { CARD_DECKS, deckKeyOf, PRESENCE_HEARTBEAT_MS, PRESENCE_TIMEOUT_MS } from '@/config';
 import type { CardValue, DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
@@ -23,6 +23,8 @@ import {
   useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
   useTransferAdminMutation,
+  useRenameParticipantMutation,
+  useRemoveParticipantMutation,
 } from '@/main/sections/Room/endpoints/roomApi';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
 import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
@@ -39,6 +41,7 @@ interface RoomProps {
 
 const Room = ({ userId }: RoomProps): ReactElement => {
   const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [question, setQuestion] = useState('');
   const [nameDraft, setNameDraft] = useState(readStoredName);
@@ -77,13 +80,14 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [extendSession, { isLoading: extending }] = useExtendSessionMutation();
   const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
   const [transferAdmin, { isLoading: handingOver }] = useTransferAdminMutation();
+  const [renameParticipant, { isLoading: renaming }] = useRenameParticipantMutation();
+  const [removeParticipant, { isLoading: removing }] = useRemoveParticipantMutation();
 
-  // Two things pass on their own with nothing written when they do: a deadline, and the last
-  // beat of somebody who left. Neither will ever arrive as a snapshot, so the tick forces both
-  // comparisons to be made again; the values themselves live in the documents.
+  // A beat going stale is the one piece of room state no snapshot will ever deliver, so the tick
+  // forces the comparison to be made again; the beats themselves live in the participant rows.
   const [, setTick] = useState(0);
   useEffect(() => {
-    const timer = setInterval(() => setTick((n) => n + 1), 5_000);
+    const timer = setInterval(() => setTick((n) => n + 1), PRESENCE_HEARTBEAT_MS);
     return () => clearInterval(timer);
   }, []);
 
@@ -109,6 +113,29 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   // Nothing to announce before the reader is in the list, and nothing the rules would accept
   // once the room has closed.
   usePresence({ sessionId: session?.id ?? null, userId, active: me !== null && roomIsLive });
+
+  // A closed room takes everyone in it home rather than leaving them standing in a room that
+  // accepts nothing. The deadline is waited out exactly instead of polled, so the room closes on
+  // the second it is due; `expiresAt` in the past fires the timeout immediately.
+  //
+  // The guard is not ceremony: under StrictMode the effect runs twice in development, and
+  // without it the reader would be told twice that the room had closed.
+  const departed = useRef(false);
+  const expiresAt = session?.expiresAt;
+  useEffect(() => {
+    if (expiresAt === undefined) return;
+
+    const leave = (): void => {
+      if (departed.current) return;
+      departed.current = true;
+      toast({ tone: 'info', children: 'This room has closed.' });
+      // Replaced, not pushed: Back must not lead into a room that has stopped accepting writes.
+      navigate('/', { replace: true });
+    };
+
+    const timer = setTimeout(leave, Math.max(0, expiresAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [expiresAt, navigate, toast]);
 
   const handleAskQuestion = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -181,6 +208,44 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     }
   };
 
+  const handleRename = async (name: string): Promise<void> => {
+    if (!session) return;
+    try {
+      await renameParticipant({ sessionId: session.id, userId, name }).unwrap();
+      storeName(name);
+      setNameDraft(name);
+    } catch (err) {
+      reportFailure(err, 'Could not change your name.');
+    }
+  };
+
+  // Clearing the vote is part of leaving, so it only travels with an open round: once the cards
+  // are on the table nothing may rewrite them, and the rules say so too.
+  const openRoundId = votingOpen && round ? round.id : undefined;
+
+  const handleLeave = async (): Promise<void> => {
+    if (!session) return;
+    try {
+      await removeParticipant({ sessionId: session.id, userId, roundId: openRoundId }).unwrap();
+      navigate('/', { replace: true });
+    } catch (err) {
+      reportFailure(err, 'Could not leave this room.');
+    }
+  };
+
+  const handleRemove = async (targetId: string): Promise<void> => {
+    if (!session) return;
+    try {
+      await removeParticipant({
+        sessionId: session.id,
+        userId: targetId,
+        roundId: openRoundId,
+      }).unwrap();
+    } catch (err) {
+      reportFailure(err, 'Could not remove this participant.');
+    }
+  };
+
   const handleDeckChange = async (next: DeckKey): Promise<void> => {
     if (!session) return;
     try {
@@ -223,20 +288,6 @@ const Room = ({ userId }: RoomProps): ReactElement => {
     );
   }
 
-  // An expired room is readable but not writable, so it says so instead of letting people vote
-  // into permission errors. Closing the room is the same state reached deliberately, which is why
-  // there is no second wording for it.
-  if (!roomIsLive) {
-    return (
-      <div className="room__error">
-        <Alert tone="info" title="This room has closed">
-          Sessions stay open for a few hours. The questions and the votes already cast are still
-          here to read, but nothing more can be written.
-        </Alert>
-      </div>
-    );
-  }
-
   // Three distinct states, and they must stay distinct: while the list is still arriving the room
   // renders with a placeholder sidebar, an unreadable list says so, and only a list that loaded
   // and does not hold the reader means "you are not in this room yet". Offering the join form on
@@ -265,7 +316,17 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   return (
     <div className="room">
-      <RoomHeader code={session.code} youAre={me?.name ?? null} />
+      <RoomHeader
+        code={session.code}
+        youAre={me?.name ?? null}
+        renaming={renaming}
+        leaving={removing}
+        // An admin with somebody left to hand the room to has to hand it over first: the rules
+        // only accept a new admin who is already a participant, so leaving first would strand
+        // the room. The last person in a room may always leave — there is nobody to strand.
+        onLeave={isAdmin && participants.length > 1 ? undefined : handleLeave}
+        onRename={handleRename}
+      />
 
       <div className="room__body">
         <RoomSidebar
@@ -277,6 +338,8 @@ const Room = ({ userId }: RoomProps): ReactElement => {
           loading={participantsLoading}
           onMakeAdmin={isAdmin ? handleMakeAdmin : undefined}
           handingOver={handingOver}
+          onRemove={isAdmin && votingOpen ? handleRemove : undefined}
+          removing={removing}
           sessionId={session.id}
           pastRounds={rounds.slice(1)}
         />

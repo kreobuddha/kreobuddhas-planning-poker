@@ -19,7 +19,16 @@ not when an API does, because there is no public API here.
 - **"Voted N of M" while a round is open**, counted against the people the room is still expecting.
   A tally that could never reach its own total was the old way of telling an admin to keep waiting
   for four people who had gone home.
-
+- **Leaving a room, and being shown out of one.** Neither was possible before, and not by
+  decision: a delete carries no document to check, so the rule that guarded participant writes
+  denied it without anybody noticing. Your vote in the open round leaves with you, in the same
+  batch, so the revealed cards can never name somebody the room no longer has — which is also why
+  the admin is offered "Remove" only while the round is open, since a revealed result must not be
+  rewritten. An admin who still has somebody to hand the room to has to hand it over first: the
+  rules only accept a new admin who is already a participant, so an admin who left first would
+  strand the room exactly as an abandoned one is stranded.
+- **Changing your name from inside the room**, instead of being stuck with whatever was typed on
+  the way in.
 - **A light theme, and a switch for it.** The interface was pinned to the dark palette by an
   attribute written into `index.html`, though the component library has carried a light one all
   along. The switch sits in a new application header beside the product name, on every screen —
@@ -31,6 +40,12 @@ not when an API does, because there is no public API here.
 
 ### Changed
 
+- **A closed room takes everyone in it home.** It used to replace the screen with a notice and
+  leave people standing in a room that accepted nothing; now the deadline is waited out exactly
+  rather than polled every five seconds, and when it passes — or when the admin closes the room —
+  everyone is returned to the home page and told why. Going Back does not lead into it again.
+  The trade is deliberate: the last round's results can no longer be read after closing, which is
+  what the round history beside the room is for.
 - **The room's "← Home" link is gone.** The product name in the new header leads home from every
   screen, and two links to the same place in two stacked headers is noise. The home page likewise
   drops its own heading — the header already carries the name — and keeps a hidden one so the
