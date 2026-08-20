@@ -7,6 +7,13 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Changed
+
+- **A long meeting's history is drawn ten questions at a time.** Every row of the history reads
+  that round's votes, and the history is mounted whether or not it is expanded — so a room with
+  fifty questions behind it was costing fifty collection reads per person per visit, for rows
+  nobody had asked to see. The label still counts the whole meeting; "Show more" fetches the rest.
+
 ### Fixed
 
 - **The theme toggle no longer does its work inside a state updater.** Nothing looks different —
