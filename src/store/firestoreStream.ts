@@ -42,6 +42,12 @@ export const streamFrom =
     const args = toArgs(arg);
     const push = (snap: QuerySnapshot | DocumentSnapshot): void => {
       const next = snapshotData(snap) as T;
+      // A read that found nothing on an endpoint declaring `notFound` is exactly what that option
+      // exists to report, and the fetch has already reported it. Upserting the `null` over that
+      // error would replace "no such room" with "a room whose data is null" — which is what put a
+      // blank screen behind every mistyped room code: the error screen rendered, and the listener
+      // destroyed it a moment later.
+      if (next === null && args.notFound !== undefined) return;
       if (getCacheEntry().data === undefined) upsert(dispatch, arg, next);
       else updateCachedData(() => next);
     };

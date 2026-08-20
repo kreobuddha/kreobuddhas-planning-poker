@@ -24,6 +24,11 @@ not when an API does, because there is no public API here.
 
 ### Fixed
 
+- **A room code that does not exist says so instead of showing a blank page.** Opening a mistyped
+  or expired room link rendered "This room could not be opened" and then destroyed it a fraction of
+  a second later, leaving nothing on screen at all. The listener behind the room was overwriting
+  the "no such room" answer with an empty one; it now leaves that answer alone.
+
 - **The theme toggle no longer does its work inside a state updater.** Nothing looks different —
   writing the DOM attribute and the stored choice twice lands on the same result — but React is
   free to call an updater more than once for one state change, and StrictMode does. Both effects
