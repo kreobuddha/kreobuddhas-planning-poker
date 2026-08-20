@@ -79,9 +79,12 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
   const [extendSession, { isLoading: extending }] = useExtendSessionMutation();
   const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
-  const [transferAdmin, { isLoading: handingOver }] = useTransferAdminMutation();
+  const [transferAdmin] = useTransferAdminMutation();
   const [renameParticipant, { isLoading: renaming }] = useRenameParticipantMutation();
   const [removeParticipant, { isLoading: removing }] = useRemoveParticipantMutation();
+  // Which row is busy, not whether any is: one flag put a spinner in every row at once.
+  const [handingOverId, setHandingOverId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   // A beat going stale is the one piece of room state no snapshot will ever deliver, so the tick
   // forces the comparison to be made again; the beats themselves live in the participant rows.
@@ -95,9 +98,18 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const me = participants.find((p) => p.id === userId) ?? null;
   // A row written before presence existed has no beat at all. It reads as present: an old room
   // full of people the app cannot vouch for is better than one that declares everybody gone.
+  //
+  // The reader is always in this set, whatever their own row says. They are looking at the room —
+  // that is not something to infer from a beat that may not have been sent yet, and reading it
+  // from the row instead produced "Voted 0 of 0" on a screen with somebody sitting in front of it.
   const presentIds = new Set(
     participants
-      .filter((p) => p.lastSeenAt === undefined || Date.now() - p.lastSeenAt < PRESENCE_TIMEOUT_MS)
+      .filter(
+        (p) =>
+          p.id === userId ||
+          p.lastSeenAt === undefined ||
+          Date.now() - p.lastSeenAt < PRESENCE_TIMEOUT_MS
+      )
       .map((p) => p.id)
   );
   // A vote document's id is its voter's uid, so the votes list doubles as "who has voted".
@@ -201,10 +213,13 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   const handleMakeAdmin = async (nextAdminId: string): Promise<void> => {
     if (!session) return;
+    setHandingOverId(nextAdminId);
     try {
       await transferAdmin({ sessionId: session.id, userId: nextAdminId }).unwrap();
     } catch (err) {
       reportFailure(err, 'Could not hand the room over.');
+    } finally {
+      setHandingOverId(null);
     }
   };
 
@@ -235,6 +250,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   const handleRemove = async (targetId: string): Promise<void> => {
     if (!session) return;
+    setRemovingId(targetId);
     try {
       await removeParticipant({
         sessionId: session.id,
@@ -243,6 +259,8 @@ const Room = ({ userId }: RoomProps): ReactElement => {
       }).unwrap();
     } catch (err) {
       reportFailure(err, 'Could not remove this participant.');
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -336,10 +354,11 @@ const Room = ({ userId }: RoomProps): ReactElement => {
           revealed={round?.revealed ?? false}
           adminId={session.adminId}
           loading={participantsLoading}
+          youId={userId}
           onMakeAdmin={isAdmin ? handleMakeAdmin : undefined}
-          handingOver={handingOver}
+          handingOverId={handingOverId}
           onRemove={isAdmin && votingOpen ? handleRemove : undefined}
-          removing={removing}
+          removingId={removingId}
           sessionId={session.id}
           pastRounds={rounds.slice(1)}
         />

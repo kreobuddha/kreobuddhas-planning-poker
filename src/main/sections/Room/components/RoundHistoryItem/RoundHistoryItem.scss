@@ -17,3 +17,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+// Sized to the badge it stands in for, so the row does not resize when the average lands.
+.round-history-item__pending {
+  width: 2.75rem;
+  height: 1.25rem;
+}

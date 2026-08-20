@@ -94,7 +94,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
         <form onSubmit={handleCreate} className="home__card">
           <h2>Start a session</h2>
           <p>Create a new room and share the code with your team.</p>
-          <Button type="submit" loading={creating}>
+          {/* Disabled by the other action, not by its own: a second submit while the first is
+              in flight would create a room nobody is sent to. */}
+          <Button type="submit" loading={creating} disabled={joining}>
             Create session
           </Button>
         </form>
@@ -107,7 +109,7 @@ const Home = ({ userId }: HomeProps): ReactElement => {
             onChange={(e) => setJoinCode(e.target.value)}
             fullWidth
           />
-          <Button type="submit" variant="outlined" loading={joining}>
+          <Button type="submit" variant="outlined" loading={joining} disabled={creating}>
             Join
           </Button>
         </form>
