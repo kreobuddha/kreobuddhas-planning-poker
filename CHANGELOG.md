@@ -7,6 +7,8 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-20
+
 ### Added
 
 - **A room now holds the people who are in it.** Every tab says "still here" while it is visible,
