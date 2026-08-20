@@ -93,6 +93,17 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
+    // The presence beat. A PATCH rather than a PUT so it cannot overwrite a name, and carrying
+    // the client's own clock — see `lastSeenAt` in src/types.ts for why it is not a
+    // serverTimestamp().
+    touchPresence: builder.mutation<void, { sessionId: string; userId: string }>({
+      query: ({ sessionId, userId }) => ({
+        url: `/sessions/${sessionId}/participants/${userId}`,
+        method: 'PATCH',
+        data: { lastSeenAt: Date.now() },
+      }),
+    }),
+
     setDeck: builder.mutation<void, { sessionId: string; deck: DeckKey }>({
       query: ({ sessionId, deck }) => ({
         url: `/sessions/${sessionId}`,
@@ -157,6 +168,7 @@ export const {
   useSubscribeVotesQuery,
   useFetchRoundVotesQuery,
   useAskQuestionMutation,
+  useTouchPresenceMutation,
   useCastVoteMutation,
   useClearVoteMutation,
   useSetDeckMutation,

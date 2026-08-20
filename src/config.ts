@@ -43,3 +43,14 @@ export const SESSION_TTL_MS = import.meta.env.DEV ? 5 * 60 * 1000 : SESSION_MAX_
 
 // Proportional to the lifetime, or the warning would never be reachable in development.
 export const SESSION_EXPIRY_WARNING_MS = import.meta.env.DEV ? 60 * 1000 : 15 * 60 * 1000;
+
+// A room should hold the people who are in it, not everyone who ever opened the link. A tab says
+// so every PRESENCE_HEARTBEAT_MS while it is visible; three missed beats and the room stops
+// counting on that person. Three rather than one so a hiccup in the network doesn't read as
+// somebody leaving.
+//
+// Not mirrored in firebase/firestore.rules, and deliberately: presence decides what the room
+// *shows*, never what it allows. Someone marked away can still vote the moment they come back,
+// which is exactly what should happen.
+export const PRESENCE_HEARTBEAT_MS = 20 * 1000;
+export const PRESENCE_TIMEOUT_MS = 3 * PRESENCE_HEARTBEAT_MS;

@@ -9,6 +9,17 @@ not when an API does, because there is no public API here.
 
 ### Added
 
+- **A room now holds the people who are in it.** Every tab says "still here" while it is visible,
+  and stops the moment it is not; three missed beats and the room stops counting on that person.
+  They are dimmed in the list and marked _away_ rather than _waiting_, because somebody who closed
+  their laptop is not somebody still thinking — and after a reveal their silence reads as _was
+  away_ instead of as a refusal to estimate. Three beats rather than one so a hiccup in the network
+  does not read as leaving, and coming back counts immediately, because being wrongly marked away
+  is worse than being counted a minute too long.
+- **"Voted N of M" while a round is open**, counted against the people the room is still expecting.
+  A tally that could never reach its own total was the old way of telling an admin to keep waiting
+  for four people who had gone home.
+
 - **A light theme, and a switch for it.** The interface was pinned to the dark palette by an
   attribute written into `index.html`, though the component library has carried a light one all
   along. The switch sits in a new application header beside the product name, on every screen —

@@ -11,6 +11,7 @@ interface RoundPanelProps {
   deckValues: readonly number[];
   votes: IVote[];
   participants: IParticipant[];
+  presentIds: Set<string>;
   myVote: CardValue | null;
   isAdmin: boolean;
   voting: boolean;
@@ -26,6 +27,7 @@ const RoundPanel = ({
   deckValues,
   votes,
   participants,
+  presentIds,
   myVote,
   isAdmin,
   voting,
@@ -35,13 +37,24 @@ const RoundPanel = ({
   onReveal,
   onReopen,
 }: RoundPanelProps): ReactElement => {
+  const votedPresentCount = votes.filter((v) => presentIds.has(v.id)).length;
+
   return (
     <div className="round-panel">
       <h2 className="round-panel__question">{round.question}</h2>
 
+      {/* Counted against the people the room is still expecting, not against every row ever
+          written: a tally of "3 of 7" that can never reach 7 tells the admin to keep waiting for
+          four people who closed their laptops. */}
+      {!round.revealed && (
+        <p className="round-panel__progress">
+          Voted {votedPresentCount} of {presentIds.size}
+        </p>
+      )}
+
       {round.revealed ? (
         <>
-          <Results votes={votes} participants={participants} />
+          <Results votes={votes} participants={participants} presentIds={presentIds} />
           {isAdmin && (
             <Button variant="outlined" loading={reopening} onClick={onReopen}>
               Reopen round

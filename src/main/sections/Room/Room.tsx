@@ -4,7 +4,7 @@ import type { FormEvent, ReactElement } from 'react';
 import { useParams } from 'react-router-dom';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { Alert, Spinner, useToast } from '@kreobuddha/ui';
-import { CARD_DECKS, deckKeyOf } from '@/config';
+import { CARD_DECKS, deckKeyOf, PRESENCE_TIMEOUT_MS } from '@/config';
 import type { CardValue, DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
@@ -31,6 +31,7 @@ import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
 import RoundPanel from '@/main/sections/Room/components/RoundPanel/RoundPanel';
 import SessionDeadline from '@/main/sections/Room/components/SessionDeadline/SessionDeadline';
+import { usePresence } from '@/main/sections/Room/usePresence';
 
 interface RoomProps {
   userId: string;
@@ -77,9 +78,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
   const [transferAdmin, { isLoading: handingOver }] = useTransferAdminMutation();
 
-  // A deadline passes on its own, and nothing is written when it does — so this is the one piece
-  // of room state that no snapshot will ever deliver. The tick only forces the comparison below
-  // to be made again; the deadline itself lives in the session document.
+  // Two things pass on their own with nothing written when they do: a deadline, and the last
+  // beat of somebody who left. Neither will ever arrive as a snapshot, so the tick forces both
+  // comparisons to be made again; the values themselves live in the documents.
   const [, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick((n) => n + 1), 5_000);
@@ -88,11 +89,26 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   const isAdmin = session?.adminId === userId;
   const me = participants.find((p) => p.id === userId) ?? null;
+  // A row written before presence existed has no beat at all. It reads as present: an old room
+  // full of people the app cannot vouch for is better than one that declares everybody gone.
+  const presentIds = new Set(
+    participants
+      .filter((p) => p.lastSeenAt === undefined || Date.now() - p.lastSeenAt < PRESENCE_TIMEOUT_MS)
+      .map((p) => p.id)
+  );
   // A vote document's id is its voter's uid, so the votes list doubles as "who has voted".
   const myVote = votes.find((v) => v.id === userId) ?? null;
   const votedIdsSet = new Set(votes.map((v) => v.id));
   const deck = deckKeyOf(session?.deck);
   const votingOpen = Boolean(round && !round.revealed);
+  const roomIsLive =
+    session === undefined || session.expiresAt === undefined
+      ? true
+      : Date.now() < session.expiresAt;
+
+  // Nothing to announce before the reader is in the list, and nothing the rules would accept
+  // once the room has closed.
+  usePresence({ sessionId: session?.id ?? null, userId, active: me !== null && roomIsLive });
 
   const handleAskQuestion = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -210,7 +226,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   // An expired room is readable but not writable, so it says so instead of letting people vote
   // into permission errors. Closing the room is the same state reached deliberately, which is why
   // there is no second wording for it.
-  if (session.expiresAt !== undefined && Date.now() >= session.expiresAt) {
+  if (!roomIsLive) {
     return (
       <div className="room__error">
         <Alert tone="info" title="This room has closed">
@@ -255,6 +271,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         <RoomSidebar
           participants={participants}
           votedIds={votedIdsSet}
+          presentIds={presentIds}
           revealed={round?.revealed ?? false}
           adminId={session.adminId}
           loading={participantsLoading}
@@ -298,6 +315,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
               deckValues={CARD_DECKS[deck].values}
               votes={votes}
               participants={participants}
+              presentIds={presentIds}
               myVote={myVote?.value ?? null}
               isAdmin={isAdmin}
               voting={casting || clearing}
