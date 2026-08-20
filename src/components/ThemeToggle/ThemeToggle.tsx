@@ -23,7 +23,9 @@ const ThemeToggle = (): ReactElement => {
   const label = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
 
   return (
-    <Tooltip content={label}>
+    // Below the button, not above it: the toggle sits in the topmost row of the page, where a
+    // tooltip preferring the top has nowhere to flip to and covers the control it describes.
+    <Tooltip content={label} placement="bottom">
       <IconButton
         label={label}
         // IconButton falls back to `label` as the native `title`, which would show a second,
