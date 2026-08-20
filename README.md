@@ -181,7 +181,9 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
   told the room has closed. The admin is warned beforehand and can push the deadline back while
   the room is live, never further ahead than the ceiling the rules enforce. "Close room" is the
   same state reached deliberately — it brings the deadline forward to now — so closed and
-  expired are one state rather than two, and neither can be undone.
+  expired are one state rather than two, and neither can be undone. What a closed room leaves
+  behind is a separate question, answered under
+  [What happens to the data](#what-happens-to-the-data).
 - Anyone can leave a room, and the admin can show somebody out; either way the person's vote in
   the open round goes with them, so the revealed cards never name somebody the room no longer
   has. Removing is offered only while the round is open, because a revealed result must not be
@@ -206,6 +208,36 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
   `onSnapshot` listeners on the `participants`, `rounds`, and `votes` collections.
 
+## What happens to the data
+
+**Closing a room stops writes to it. It does not delete anything.** Closing and expiring are the
+same state — the deadline is brought forward to now — and both are a write ban the rules enforce,
+which is the point: what a room voted stays readable as a record afterwards. So a Firestore project
+running this app accumulates every session ever created until something removes them.
+
+Nothing in this repository does that removal, and nothing can: it is a project setting, not code.
+Configure it once, by hand:
+
+1. **Firebase Console → Firestore Database → TTL**, then **Create policy**.
+2. Collection group `sessions`, timestamp field `expiresAt`.
+
+The field is already written as a real `Timestamp` by `createSession`, precisely so a TTL policy
+has something to read, and it is moved by "extend" and "close room" like any other deadline. TTL
+policies are available on the free Spark plan; no billing account is required.
+
+**The limitation is worth stating plainly, because it is not obvious and it is not fixed here.**
+A TTL policy deletes the document it matched and nothing beneath it. Firestore subcollections do
+not belong to their parent document — they are only addressed through it — so the
+`participants`, `rounds` and `votes` under a deleted session survive it, unreachable through the
+app and invisible in the console's tree, but still stored and still billed. Removing them needs a
+recursive delete, which means a Cloud Function, which means the Blaze plan. That is a deliberate
+deferral rather than an oversight: the demo's volume does not justify a billing account, and half
+a cleanup that is honestly described beats a full one that is quietly missing.
+
+**None of this is verified by anything.** The policy lives in the Firebase console, outside this
+repository and outside CI, so a checkout that builds and passes every check says nothing about
+whether the project it points at has a TTL policy at all. Check it in the console.
+
 ## Project structure
 
 ```
@@ -213,11 +245,16 @@ src/
   auth/         userSlice (uid/loading/error), useCheckAuth, store/authApi
   components/   AppHeader, ThemeToggle, VoteCards, ParticipantList, Results, DeckPicker,
                 CopyLinkButton
-  hooks/        useTheme (light/dark, remembered)
+  hooks/        useTheme (light/dark, remembered) — hooks shared across the app; a hook only
+                one section uses sits beside that section instead
   lib/          Firebase client, session code generator, Timestamp conversion, theme storage
   main/
-    endpoints/  sessionsApi (cross-section: look a session up by code)
-    sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/
+    endpoints/  cross-section: sessionsApi (look a session up by code),
+                participantsApi (read, create and rename your own participant row)
+    sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/;
+                Room also has components/ and its own hooks — usePresence, useRoomData
+                (subscriptions and what follows from them), useRoomActions (mutations and
+                handlers)
   store/        configureStore, emptyApi, firebaseBaseQuery, firestoreStream
   config.ts     Card decks
   types.ts      ISession, IParticipant, IRound, IVote

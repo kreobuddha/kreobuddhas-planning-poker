@@ -3,13 +3,15 @@ import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, TextField } from '@kreobuddha/ui';
-import { NAME_MAX_LENGTH } from '@/config';
-import { generateSessionCode } from '@/lib/code';
+import { NAME_MAX_LENGTH, SESSION_CODE_LENGTH } from '@/config';
+import { generateSessionCode, normalizeSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
+import { useCreateSessionMutation } from '@/main/sections/Home/endpoints/homeApi';
 import {
-  useCreateSessionMutation,
-  useEnsureParticipantMutation,
-} from '@/main/sections/Home/endpoints/homeApi';
+  useCreateParticipantMutation,
+  useLazyFetchParticipantQuery,
+  useRenameParticipantMutation,
+} from '@/main/endpoints/participantsApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
 
@@ -28,7 +30,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
   const [joining, setJoining] = useState(false);
 
   const [createSession] = useCreateSessionMutation();
-  const [ensureParticipant] = useEnsureParticipantMutation();
+  const [fetchParticipant] = useLazyFetchParticipantQuery();
+  const [createParticipant] = useCreateParticipantMutation();
+  const [renameParticipant] = useRenameParticipantMutation();
   const [findSessionByCode] = useLazyFindSessionByCodeQuery();
 
   const handleCreate = async (e: FormEvent): Promise<void> => {
@@ -53,18 +57,25 @@ const Home = ({ userId }: HomeProps): ReactElement => {
 
   const handleJoin = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!name.trim() || !joinCode.trim()) {
+    if (!name.trim() || !joinCode) {
       setError('Enter your name and a session code.');
       return;
     }
     setJoining(true);
     setError(null);
     try {
-      const code = joinCode.trim().toUpperCase();
-      const session = await findSessionByCode(code).unwrap();
-      await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
+      const session = await findSessionByCode(joinCode).unwrap();
+      // Rejoining a room you were already in must not rewrite `joinedAt` — the list is ordered
+      // by it and the rules freeze it, so a blind upsert would both reorder the room and be
+      // refused. One extra document read decides which write this is, and it is a read the room
+      // would have made a moment later anyway.
+      const existing = await fetchParticipant({ sessionId: session.id, userId }).unwrap();
+      const participant = { sessionId: session.id, userId, name: name.trim() };
+      await (existing
+        ? renameParticipant(participant).unwrap()
+        : createParticipant(participant).unwrap());
       storeName(name.trim());
-      navigate(`/room/${code}`);
+      navigate(`/room/${joinCode}`);
     } catch (err) {
       setError(errorMessage(err, 'Could not join session.'));
     } finally {
@@ -103,10 +114,18 @@ const Home = ({ userId }: HomeProps): ReactElement => {
 
         <form onSubmit={handleJoin} className="home__card">
           <h2>Join a session</h2>
+          {/* The field corrects rather than validates: `normalizeSessionCode` upper-cases what
+              was typed and drops what no code can contain, so a code copied out of a chat
+              message with a trailing space or a stray quote still lands. `maxLength` bounds
+              typing and the normaliser bounds pasting, which `maxLength` does not. */}
           <TextField
             label="Session code"
             value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)}
+            maxLength={SESSION_CODE_LENGTH}
+            autoComplete="off"
+            spellCheck={false}
+            inputMode="text"
+            onChange={(e) => setJoinCode(normalizeSessionCode(e.target.value))}
             fullWidth
           />
           <Button type="submit" variant="outlined" loading={joining} disabled={creating}>

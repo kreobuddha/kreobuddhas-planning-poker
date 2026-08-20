@@ -58,6 +58,7 @@ service cloud.firestore {
         && request.resource.data.adminId == request.auth.uid
         && request.resource.data.code == sessionId
         && isKnownDeck(request.resource.data.deck)
+        && request.resource.data.createdAt is timestamp
         && request.resource.data.expiresAt is timestamp
         && request.resource.data.expiresAt > request.time
         && request.resource.data.expiresAt <= request.time + maxLifetime()
@@ -105,11 +106,20 @@ service cloud.firestore {
         // stops counting on somebody is the client's decision, and being marked away withholds
         // no permission. It is optional so that a row written before presence existed still
         // validates.
+        //
+        // `joinedAt` is required and frozen. Required because `hasOnly` bounds which keys may
+        // appear and nothing about their values: without a type check a participant could write
+        // a string of any length onto their own row, and every tab subscribed to the list would
+        // download it. Frozen because the list is ordered by it, so rewriting it is a way to
+        // reorder the room — and because `resource` is null on a create, the guard lets the row
+        // be written once and never moved afterwards.
         allow write: if isSignedIn() && uid == request.auth.uid && isLive()
           && request.resource.data.keys().hasOnly(['name', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
           && request.resource.data.name.size() <= 40
+          && request.resource.data.joinedAt is timestamp
+          && (resource == null || request.resource.data.joinedAt == resource.data.joinedAt)
           && (!request.resource.data.keys().hasAny(['lastSeenAt'])
               || request.resource.data.lastSeenAt is number);
 
@@ -167,6 +177,7 @@ service cloud.firestore {
           allow create, update: if isSignedIn() && uid == request.auth.uid
             && isLive() && roundIsOpen()
             && request.resource.data.keys().hasOnly(['value', 'createdAt'])
+            && request.resource.data.createdAt is timestamp
             && (request.resource.data.value == '?'
                 || request.resource.data.value in deckValues(session().get('deck', 'modified')));
 

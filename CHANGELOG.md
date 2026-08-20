@@ -7,6 +7,67 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-20
+
+### Added
+
+- **The README now says what a closed room leaves behind, and what to do about it.** Closing a
+  room stops writes to it and deletes nothing, so a project running this app keeps every session
+  ever created. Removing them is a TTL policy set by hand in the Firebase console — nothing in
+  this repository does it or can check that it was done, and the new "What happens to the data"
+  section says so, including the part a TTL policy does not clean up.
+
+- **The session code field corrects what you type instead of failing on it.** A code copied out of
+  a chat message arrives with a trailing space, or in lowercase, or wrapped in punctuation; all of
+  that is now dropped as you type, the field stops at six characters, and autocomplete and
+  spellcheck are off. Every character it removes is one no code can contain, so nothing typed in
+  good faith is lost.
+
+### Changed
+
+- **A long meeting's history is drawn ten questions at a time.** Every row of the history reads
+  that round's votes, and the history is mounted whether or not it is expanded — so a room with
+  fifty questions behind it was costing fifty collection reads per person per visit, for rows
+  nobody had asked to see. The label still counts the whole meeting; "Show more" fetches the rest.
+
+### Fixed
+
+- **The room header is valid HTML again.** The line carrying the rename form was a paragraph, and
+  a paragraph may not contain a form — so the browser quietly closed it early and rebuilt the
+  header differently from how it was written. Nothing looked wrong, but the markup the browser
+  ended up with was not the markup the app described, which is a bad foundation for anything.
+
+- **A room code that does not exist says so instead of showing a blank page.** Opening a mistyped
+  or expired room link rendered "This room could not be opened" and then destroyed it a fraction of
+  a second later, leaving nothing on screen at all. The listener behind the room was overwriting
+  the "no such room" answer with an empty one; it now leaves that answer alone.
+
+- **The theme toggle no longer does its work inside a state updater.** Nothing looks different —
+  writing the DOM attribute and the stored choice twice lands on the same result — but React is
+  free to call an updater more than once for one state change, and StrictMode does. Both effects
+  now happen in the click handler, where they belong.
+
+- **Rejoining a room keeps your place in it.** Coming back to a room you had already joined used
+  to rewrite the moment you joined, and the list is ordered by that moment — so a returning member
+  was sent to the bottom, below people who arrived after them. Joining now writes the row once and
+  only updates the name afterwards.
+
+### Security
+
+- **Every field the client writes now has a type the rules check.** Bounding which keys a document
+  may carry says nothing about what those keys hold, so a participant could write an arbitrarily
+  long string as their own join time — and every tab subscribed to the room downloaded it.
+  `createdAt` on sessions and votes, and `joinedAt` on participants, are now required to be
+  timestamps.
+- **A participant's join time is frozen once written.** It orders the room, so being able to
+  rewrite it was a way to move yourself in the list. Changing your name and reporting that you are
+  still present are unaffected.
+
+  Upgrading has one narrow consequence, worth knowing about for the few minutes it lasts: a tab
+  still running the previous version writes a fresh join time whenever it rejoins a room, which
+  these rules now refuse. Such a tab reports that it could not join until it is reloaded. Nothing
+  is lost and reloading is the whole fix.
+
 ## [0.4.0] — 2026-08-20
 
 ### Added

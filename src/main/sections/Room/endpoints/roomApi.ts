@@ -104,14 +104,6 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
-    renameParticipant: builder.mutation<void, { sessionId: string; userId: string; name: string }>({
-      query: ({ sessionId, userId, name }) => ({
-        url: `/sessions/${sessionId}/participants/${userId}`,
-        method: 'PATCH',
-        data: { name },
-      }),
-    }),
-
     // Leaving takes your vote with you, and removing somebody takes theirs — otherwise the
     // revealed cards would name a person the room no longer has. One batch, so a room can never
     // be left holding a vote whose author is gone.
@@ -203,7 +195,6 @@ export const {
   useFetchRoundVotesQuery,
   useAskQuestionMutation,
   useTouchPresenceMutation,
-  useRenameParticipantMutation,
   useRemoveParticipantMutation,
   useCastVoteMutation,
   useClearVoteMutation,

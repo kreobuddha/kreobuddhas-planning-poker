@@ -12,6 +12,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  serverTimestamp,
   setDoc,
   Timestamp,
   updateDoc,
@@ -30,6 +31,11 @@ const OUTSIDER = 'outsider-uid';
 // Never joins anything and never votes anywhere else, so a test can ask what the rules make of
 // a complete stranger without another test having quietly made them a participant first.
 const STRANGER = 'stranger-uid';
+// Two more one-purpose uids. Both tests below write a participant row and then act on it again,
+// which the frozen `joinedAt` makes order-dependent: reusing a uid another test has already
+// seated would turn their second write into a rewrite and fail for the wrong reason.
+const LEAVER = 'leaver-uid';
+const RETURNER = 'returner-uid';
 const OPEN_ROUND = 'round-open';
 const REVEALED_ROUND = 'round-revealed';
 
@@ -76,19 +82,19 @@ before(async () => {
       code: CODE,
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     });
     await setDoc(doc(db, expiredSessionPath), {
       code: EXPIRED_CODE,
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(-1),
     });
     await setDoc(doc(db, `${expiredSessionPath}/participants/${MEMBER}`), {
       name: 'Member',
-      joinedAt: Date.now(),
+      joinedAt: Timestamp.now(),
     });
     await setDoc(doc(db, `${expiredSessionPath}/rounds/${OPEN_ROUND}`), {
       question: 'Asked before the room closed',
@@ -99,18 +105,18 @@ before(async () => {
       code: HANDOVER_CODE,
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     });
     await setDoc(doc(db, `${handoverSessionPath}/participants/${MEMBER}`), {
       name: 'Member',
-      joinedAt: Date.now(),
+      joinedAt: Timestamp.now(),
     });
     await setDoc(doc(db, otherSessionPath), {
       code: OTHER_CODE,
       adminId: OUTSIDER,
       deck: 'fibonacci',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
     });
     await setDoc(doc(db, `${otherSessionPath}/rounds/${OPEN_ROUND}`), {
       question: 'Elsewhere',
@@ -119,7 +125,7 @@ before(async () => {
     });
     await setDoc(doc(db, `${sessionPath}/participants/${MEMBER}`), {
       name: 'Member',
-      joinedAt: Date.now(),
+      joinedAt: Timestamp.now(),
     });
     await setDoc(doc(db, `${sessionPath}/rounds/${OPEN_ROUND}`), {
       question: 'How long?',
@@ -131,7 +137,10 @@ before(async () => {
       revealed: true,
       createdAt: Date.now(),
     });
-    await setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: 5, createdAt: Date.now() });
+    await setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), {
+      value: 5,
+      createdAt: Timestamp.now(),
+    });
   });
 });
 
@@ -152,7 +161,7 @@ describe('sessions', () => {
       code: 'NEWONE',
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     };
     await assertSucceeds(setDoc(doc(db, 'sessions/NEWONE'), valid));
@@ -170,16 +179,19 @@ describe('sessions', () => {
     const db = asUser(ADMIN);
     const code = 'BATCH1';
     const batch = writeBatch(db);
+    // serverTimestamp() rather than a client Timestamp: this is the one case that mirrors
+    // `createSession` field for field, so it is also what proves a pending sentinel satisfies
+    // `is timestamp` — the rules see it as request.time.
     batch.set(doc(db, `sessions/${code}`), {
       code,
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: serverTimestamp(),
       expiresAt: hoursFromNow(3),
     });
     batch.set(doc(db, `sessions/${code}/participants/${ADMIN}`), {
       name: 'Admin',
-      joinedAt: Date.now(),
+      joinedAt: serverTimestamp(),
     });
     await assertSucceeds(batch.commit());
 
@@ -192,13 +204,13 @@ describe('sessions', () => {
     stolen.set(doc(outsiderDb, 'sessions/BATCH2'), {
       code: 'BATCH2',
       adminId: ADMIN,
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       deck: 'modified',
       expiresAt: hoursFromNow(3),
     });
     stolen.set(doc(outsiderDb, `sessions/BATCH2/participants/${OUTSIDER}`), {
       name: 'Outsider',
-      joinedAt: Date.now(),
+      joinedAt: Timestamp.now(),
     });
     await assertFails(stolen.commit());
   });
@@ -218,7 +230,7 @@ describe('sessions', () => {
     const base = {
       adminId: ADMIN,
       deck: 'modified',
-      createdAt: Date.now(),
+      createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     };
     await assertFails(
@@ -227,6 +239,20 @@ describe('sessions', () => {
     // Not a `hasOnly` failure but the mirror of one: a subset is allowed by `hasOnly`, so what
     // catches a missing deck is the deck check itself.
     await assertFails(setDoc(doc(db, 'sessions/EXTRA2'), { adminId: ADMIN, code: 'EXTRA2' }));
+  });
+
+  // `hasOnly` bounds which keys may appear and says nothing about their values, so every field
+  // the client writes needs a type of its own. Without this one `createdAt` could carry a string
+  // of any length into a document every visitor to the room reads.
+  it('rejects a createdAt that is not a timestamp', async () => {
+    const db = asUser(ADMIN);
+    const base = { adminId: ADMIN, deck: 'modified', expiresAt: hoursFromNow(3) };
+    await assertFails(
+      setDoc(doc(db, 'sessions/BADAT1'), { ...base, code: 'BADAT1', createdAt: Date.now() })
+    );
+    await assertFails(
+      setDoc(doc(db, 'sessions/BADAT2'), { ...base, code: 'BADAT2', createdAt: 'x'.repeat(200) })
+    );
   });
 
   it('cannot be deleted, by the admin or anyone else', async () => {
@@ -254,7 +280,7 @@ describe('sessions', () => {
 describe('session lifetime', () => {
   it('requires a deadline, and one no further ahead than the ceiling', async () => {
     const db = asUser(ADMIN);
-    const base = { adminId: ADMIN, deck: 'modified', createdAt: Date.now() };
+    const base = { adminId: ADMIN, deck: 'modified', createdAt: Timestamp.now() };
     await assertFails(setDoc(doc(db, 'sessions/NODATE'), { ...base, code: 'NODATE' }));
     await assertFails(
       setDoc(doc(db, 'sessions/TOOFAR'), {
@@ -295,7 +321,7 @@ describe('session lifetime', () => {
     await assertFails(
       setDoc(doc(member, `${expiredSessionPath}/participants/${MEMBER}`), {
         name: 'Member',
-        joinedAt: Date.now(),
+        joinedAt: Timestamp.now(),
       })
     );
     await assertFails(
@@ -308,7 +334,7 @@ describe('session lifetime', () => {
     await assertFails(
       setDoc(doc(member, `${expiredSessionPath}/rounds/${OPEN_ROUND}/votes/${MEMBER}`), {
         value: 5,
-        createdAt: Date.now(),
+        createdAt: Timestamp.now(),
       })
     );
   });
@@ -339,7 +365,7 @@ describe('admin handover', () => {
 describe('participants', () => {
   it('accepts only your own row, with a sane name', async () => {
     const db = asUser(OUTSIDER);
-    const row = { name: 'Outsider', joinedAt: Date.now() };
+    const row = { name: 'Outsider', joinedAt: Timestamp.now() };
     await assertSucceeds(setDoc(doc(db, `${sessionPath}/participants/${OUTSIDER}`), row));
     await assertFails(setDoc(doc(db, `${sessionPath}/participants/${MEMBER}`), row));
     await assertFails(
@@ -353,9 +379,9 @@ describe('participants', () => {
   it('rejects an empty name and any field the model does not have', async () => {
     const db = asUser(STRANGER);
     const path = `${sessionPath}/participants/${STRANGER}`;
-    await assertFails(setDoc(doc(db, path), { name: '', joinedAt: Date.now() }));
+    await assertFails(setDoc(doc(db, path), { name: '', joinedAt: Timestamp.now() }));
     await assertFails(
-      setDoc(doc(db, path), { name: 'Stranger', joinedAt: Date.now(), role: 'observer' })
+      setDoc(doc(db, path), { name: 'Stranger', joinedAt: Timestamp.now(), role: 'observer' })
     );
   });
 
@@ -385,6 +411,35 @@ describe('participants', () => {
     );
   });
 
+  // The same gap as on the session document, and worse here: the participant list is streamed
+  // to every tab in the room, so an unbounded value on your own row is downloaded by everybody.
+  // A number is refused too, which is the drift this suite used to have — the fixtures wrote
+  // millis while the app wrote serverTimestamp(), so the tests were checking a shape the client
+  // never produced.
+  it('refuses a joinedAt that is not a timestamp', async () => {
+    const db = asUser(STRANGER);
+    const path = `${sessionPath}/participants/${STRANGER}`;
+    await assertFails(setDoc(doc(db, path), { name: 'Stranger', joinedAt: Date.now() }));
+    await assertFails(setDoc(doc(db, path), { name: 'Stranger', joinedAt: 'x'.repeat(200) }));
+  });
+
+  // `joinedAt` orders the room, so rewriting it is a way to move yourself in the list — and a
+  // returning member would move to the bottom every time they came back. Freezing it must not
+  // cost them the two writes that legitimately follow a rejoin, which travel on the same rule.
+  it('freezes joinedAt without freezing the name or the presence beat', async () => {
+    const db = asUser(RETURNER);
+    const path = `${sessionPath}/participants/${RETURNER}`;
+    const joinedAt = Timestamp.fromMillis(Date.now() - 60 * 1000);
+    await assertSucceeds(setDoc(doc(db, path), { name: 'Returner', joinedAt }));
+
+    await assertFails(setDoc(doc(db, path), { name: 'Returner', joinedAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(doc(db, path), { name: 'Returner again' }));
+    await assertSucceeds(updateDoc(doc(db, path), { lastSeenAt: Date.now() }));
+    // Carrying the value back unchanged is still a write the rules accept, so the freeze bounds
+    // the value rather than the verb.
+    await assertSucceeds(setDoc(doc(db, path), { name: 'Returner once more', joinedAt }));
+  });
+
   // Leaving needs a rule of its own: a delete carries no `request.resource`, so the field checks
   // on `write` are evaluated against nothing and deny it. That, and not a decision, is why
   // leaving used to be impossible.
@@ -392,10 +447,10 @@ describe('participants', () => {
   // every later case running against a session he is no longer in, and the failure would show up
   // somewhere else entirely.
   it('lets you leave, and lets the admin show somebody out', async () => {
-    const leaver = asUser(OUTSIDER);
-    const row = { name: 'Passing through', joinedAt: Date.now() };
-    await assertSucceeds(setDoc(doc(leaver, `${sessionPath}/participants/${OUTSIDER}`), row));
-    await assertSucceeds(deleteDoc(doc(leaver, `${sessionPath}/participants/${OUTSIDER}`)));
+    const leaver = asUser(LEAVER);
+    const row = { name: 'Passing through', joinedAt: Timestamp.now() };
+    await assertSucceeds(setDoc(doc(leaver, `${sessionPath}/participants/${LEAVER}`), row));
+    await assertSucceeds(deleteDoc(doc(leaver, `${sessionPath}/participants/${LEAVER}`)));
 
     await assertSucceeds(
       setDoc(doc(asUser(STRANGER), `${sessionPath}/participants/${STRANGER}`), row)
@@ -495,13 +550,13 @@ describe('votes', () => {
   it('accept only your own, and only a value from the deck', async () => {
     const db = asUser(MEMBER);
     await assertSucceeds(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 5, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 5, createdAt: Timestamp.now() })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 999, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 999, createdAt: Timestamp.now() })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: 5, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: 5, createdAt: Timestamp.now() })
     );
   });
 
@@ -510,27 +565,27 @@ describe('votes', () => {
   it("take '?' whatever the deck is, and no other string", async () => {
     const db = asUser(MEMBER);
     await assertSucceeds(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '?', createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '?', createdAt: Timestamp.now() })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '??', createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '??', createdAt: Timestamp.now() })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '5', createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: '5', createdAt: Timestamp.now() })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: '?', createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: '?', createdAt: Timestamp.now() })
     );
     // And it is frozen with everything else once the cards are on the table.
     await assertFails(
-      setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: '?', createdAt: Date.now() })
+      setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: '?', createdAt: Timestamp.now() })
     );
   });
 
   it('can be cleared while the round is open', async () => {
     const db = asUser(MEMBER);
     await assertSucceeds(
-      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 3, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 3, createdAt: Timestamp.now() })
     );
     await assertSucceeds(deleteDoc(doc(db, votePath(OPEN_ROUND, MEMBER))));
   });
@@ -538,7 +593,7 @@ describe('votes', () => {
   it('are frozen once the round is revealed', async () => {
     const db = asUser(MEMBER);
     await assertFails(
-      setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: 8, createdAt: Date.now() })
+      setDoc(doc(db, votePath(REVEALED_ROUND, MEMBER)), { value: 8, createdAt: Timestamp.now() })
     );
     await assertFails(deleteDoc(doc(db, votePath(REVEALED_ROUND, MEMBER))));
   });
@@ -547,9 +602,23 @@ describe('votes', () => {
     await assertFails(
       setDoc(doc(asUser(MEMBER), votePath(OPEN_ROUND, MEMBER)), {
         value: 5,
-        createdAt: Date.now(),
+        createdAt: Timestamp.now(),
         comment: 'gut feeling',
       })
+    );
+  });
+
+  it('reject a createdAt that is not a timestamp', async () => {
+    const db = asUser(MEMBER);
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 5, createdAt: Date.now() })
+    );
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 5, createdAt: 'x'.repeat(200) })
+    );
+    // What `castVote` actually sends, for the same reason the batch test uses it.
+    await assertSucceeds(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 5, createdAt: serverTimestamp() })
     );
   });
 
@@ -557,7 +626,9 @@ describe('votes', () => {
   // takes their vote with them — and stops where every other write does: at the reveal.
   it('let the admin clear somebody else vote while the round is open, and never after', async () => {
     const member = asUser(MEMBER);
-    await assertSucceeds(setDoc(doc(member, votePath(OPEN_ROUND, MEMBER)), { value: 3 }));
+    await assertSucceeds(
+      setDoc(doc(member, votePath(OPEN_ROUND, MEMBER)), { value: 3, createdAt: Timestamp.now() })
+    );
     await assertSucceeds(deleteDoc(doc(asUser(ADMIN), votePath(OPEN_ROUND, MEMBER))));
     // The revealed round still holds the vote written in `before`, and nothing may touch it.
     await assertFails(deleteDoc(doc(asUser(ADMIN), votePath(REVEALED_ROUND, MEMBER))));
@@ -575,7 +646,7 @@ describe('votes', () => {
   it('are accepted from someone who never joined the session', async () => {
     const db = asUser(STRANGER);
     await assertSucceeds(
-      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Timestamp.now() })
     );
     await assertSucceeds(deleteDoc(doc(db, votePath(OPEN_ROUND, STRANGER))));
   });
@@ -598,17 +669,17 @@ describe('unauthenticated access', () => {
         code: 'NOAUTH',
         adminId: STRANGER,
         deck: 'modified',
-        createdAt: Date.now(),
+        createdAt: Timestamp.now(),
       })
     );
     await assertFails(
       setDoc(doc(db, `${sessionPath}/participants/${STRANGER}`), {
         name: 'Nobody',
-        joinedAt: Date.now(),
+        joinedAt: Timestamp.now(),
       })
     );
     await assertFails(
-      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Date.now() })
+      setDoc(doc(db, votePath(OPEN_ROUND, STRANGER)), { value: 5, createdAt: Timestamp.now() })
     );
   });
 });

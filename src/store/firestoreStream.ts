@@ -1,7 +1,7 @@
 import { onSnapshot } from 'firebase/firestore';
 import type { DocumentReference, DocumentSnapshot, Query, QuerySnapshot } from 'firebase/firestore';
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
-import { applySelect, effectiveSelect, isCollection, resolveRef } from '@/store/firebaseBaseQuery';
+import { isCollection, resolveRef, snapshotData } from '@/store/firebaseBaseQuery';
 
 // Narrowed to "takes a thunk": this dispatch only ever forwards an endpoint's own upsert thunk,
 // and spelling out the store state here would tie the store layer to every api that uses it.
@@ -41,7 +41,13 @@ export const streamFrom =
     // overwrites it moments later with a read of the same collection.
     const args = toArgs(arg);
     const push = (snap: QuerySnapshot | DocumentSnapshot): void => {
-      const next = applySelect(snap, effectiveSelect(args)) as T;
+      const next = snapshotData(snap) as T;
+      // A read that found nothing on an endpoint declaring `notFound` is exactly what that option
+      // exists to report, and the fetch has already reported it. Upserting the `null` over that
+      // error would replace "no such room" with "a room whose data is null" — which is what put a
+      // blank screen behind every mistyped room code: the error screen rendered, and the listener
+      // destroyed it a moment later.
+      if (next === null && args.notFound !== undefined) return;
       if (getCacheEntry().data === undefined) upsert(dispatch, arg, next);
       else updateCachedData(() => next);
     };

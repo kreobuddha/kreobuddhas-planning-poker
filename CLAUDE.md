@@ -50,7 +50,10 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   added despite the no-abstractions rule further down; don't strip it back out
 - `src/components/` — shared UI, one folder per component (AppHeader, ThemeToggle, VoteCards,
   ParticipantList, Results, DeckPicker, CopyLinkButton)
-- `src/hooks/` — flat, single-file hooks (`useTheme`), per `docs/code-rules.md`
+- `src/hooks/` — flat, single-file hooks shared across the app (`useTheme`), per
+  `docs/code-rules.md`. A hook that only one section uses is not shared and does not go here: it
+  sits beside that section, as `usePresence.ts`, `useRoomData.ts` and `useRoomActions.ts` do in
+  `src/main/sections/Room/`
 - `src/store/` — `configureStore` (`index.ts`), `rootReducer.ts`, the shared empty RTK Query API
   instance (`emptyApi.ts`), and the fake-backend layer: `firebaseBaseQuery.ts` +
   `firestoreStream.ts` (see "Endpoints layer" below)
@@ -67,9 +70,14 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   changed on both sides at once — the comments beside each constant say which
 - `src/types.ts` — domain interfaces (`ISession`, `IParticipant`, `IRound`, `IVote`)
 - `src/main/sections/` — Home (create/join), Room (voting + reveal), one folder per section;
-  a section large enough to split keeps its own `components/` folder (Room does)
-- `src/main/endpoints/` — endpoints shared across sections (currently `sessionsApi.ts`,
-  looking a session up by code)
+  a section large enough to split keeps its own `components/` folder (Room does), and its own
+  hooks beside the component. Room is split along the read/write seam: `useRoomData` holds the
+  subscriptions and everything derived from them, `useRoomActions` holds the mutations and the
+  handlers and receives what it needs to read as arguments, and `Room.tsx` composes the two and
+  renders. Split a section that way when it gets there rather than inventing a third shape
+- `src/main/endpoints/` — endpoints shared across sections: `sessionsApi.ts` (look a session up
+  by code) and `participantsApi.ts` (read, create and rename your own participant row — used by
+  both Home and Room, which is why it lives here rather than in either one)
 
 ## Endpoints layer
 
@@ -94,11 +102,11 @@ Firestore never speaks HTTP — and it maps as:
 
 Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
 collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
-`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`);
-`effectiveSelect` resolves it once so the fetch and the stream can't reduce the same snapshot
-differently. `notFound` turns a read that found nothing into an error, which is how
-`findSessionByCode` reports a bad code. A read that fails always reports the failure — an empty
-room and an unreadable one must not look alike to the UI.
+`where`/`orderBy`/`limit`. A read is reduced by `snapshotData` and by nothing else — a document
+becomes an object or `null`, a collection becomes an array — so the fetch and the stream cannot
+reduce the same snapshot differently. `notFound` turns a read that found nothing into an error,
+which is how `findSessionByCode` reports a bad code. A read that fails always reports the
+failure — an empty room and an unreadable one must not look alike to the UI.
 
 A session's join code IS its document id (`sessions/{CODE}`), so a room is reached with a `get`.
 That's what lets the rules deny `list` on `/sessions` outright, and it makes a code collision a
@@ -107,7 +115,7 @@ rejected write instead of a second team silently landing in the first team's roo
 Live data still needs `onCacheEntryAdded`, because `BaseQueryFn` resolves exactly once and has
 no channel for later values. `streamFrom` in `src/store/firestoreStream.ts` bridges the two: an
 endpoint names its descriptor builder once and passes it to _both_ `query` and `streamFrom`, so
-the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
+the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `snapshotData` and can't
 drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
 meaningful) and stay live after.
 
