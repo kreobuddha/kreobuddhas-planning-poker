@@ -88,10 +88,10 @@ export const useRoomData = (userId: string): RoomData => {
   const votedIds = new Set(votes.map((v) => v.id));
   const deck = deckKeyOf(session?.deck);
   const votingOpen = Boolean(round && !round.revealed);
-  const roomIsLive =
-    session === undefined || session.expiresAt === undefined
-      ? true
-      : Date.now() < session.expiresAt;
+  // Optional-chained rather than compared against `undefined`: a session that is absent has been
+  // both `undefined` and `null` at different points in this component's life, and a room with no
+  // deadline is live in either case.
+  const roomIsLive = session?.expiresAt === undefined ? true : Date.now() < session.expiresAt;
 
   // Nothing to announce before the reader is in the list, and nothing the rules would accept
   // once the room has closed.
