@@ -54,3 +54,10 @@ export const SESSION_EXPIRY_WARNING_MS = import.meta.env.DEV ? 60 * 1000 : 15 * 
 // which is exactly what should happen.
 export const PRESENCE_HEARTBEAT_MS = 20 * 1000;
 export const PRESENCE_TIMEOUT_MS = 3 * PRESENCE_HEARTBEAT_MS;
+
+// How many past questions the history draws before it asks to be asked for more. The number is
+// not cosmetic: `Accordion` is a `<details>`, so its content is mounted whether or not it is
+// open, and every row mounted reads that round's whole votes collection. A room with fifty
+// questions behind it therefore costs fifty collection reads per person per visit, none of which
+// anybody asked to see. Ten is what fits on a screen; the rest arrive when they are wanted.
+export const ROUND_HISTORY_PAGE_SIZE = 10;
