@@ -14,6 +14,13 @@ interface ParticipantListProps {
   /** Absent for everyone but the admin, which is what hides the handover control. */
   onMakeAdmin?: (userId: string) => void;
   handingOver?: boolean;
+  /**
+   * Absent unless the reader is the admin and the round is open. Removing somebody takes their
+   * vote with them, and a vote cannot be cleared once the cards are on the table — so the
+   * control is not offered then rather than offered and refused.
+   */
+  onRemove?: (userId: string) => void;
+  removing?: boolean;
 }
 
 const ParticipantList = ({
@@ -24,6 +31,8 @@ const ParticipantList = ({
   adminId,
   onMakeAdmin,
   handingOver = false,
+  onRemove,
+  removing = false,
 }: ParticipantListProps): ReactElement => {
   return (
     <ul className="participant-list">
@@ -70,6 +79,19 @@ const ParticipantList = ({
               onClick={() => onMakeAdmin(p.id)}
             >
               Make admin
+            </Button>
+          )}
+          {/* Never on the admin's own row: removing the admin would leave the room with nobody
+              who can appoint one, which is the state handing over exists to prevent. */}
+          {onRemove && p.id !== adminId && (
+            <Button
+              size="sm"
+              variant="ghost"
+              danger
+              loading={removing}
+              onClick={() => onRemove(p.id)}
+            >
+              Remove
             </Button>
           )}
         </li>

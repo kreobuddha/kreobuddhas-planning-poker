@@ -16,6 +16,8 @@ interface RoomSidebarProps {
   pastRounds: IRound[];
   onMakeAdmin?: (userId: string) => void;
   handingOver: boolean;
+  onRemove?: (userId: string) => void;
+  removing: boolean;
 }
 
 const RoomSidebar = ({
@@ -29,6 +31,8 @@ const RoomSidebar = ({
   pastRounds,
   onMakeAdmin,
   handingOver,
+  onRemove,
+  removing,
 }: RoomSidebarProps): ReactElement => {
   return (
     <aside className="room-sidebar">
@@ -50,6 +54,8 @@ const RoomSidebar = ({
           adminId={adminId}
           onMakeAdmin={onMakeAdmin}
           handingOver={handingOver}
+          onRemove={onRemove}
+          removing={removing}
         />
       )}
 

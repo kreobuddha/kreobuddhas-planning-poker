@@ -50,7 +50,10 @@ export interface ReadWriteArgs {
 
 interface BatchArgs {
   method: 'BATCH';
-  writes: { url: string; method: 'PUT' | 'PATCH'; data: DocumentData }[];
+  // `data` is absent for a DELETE and required by the other two, which is what the union says.
+  writes: (
+    { url: string; method: 'PUT' | 'PATCH'; data: DocumentData } | { url: string; method: 'DELETE' }
+  )[];
 }
 
 export type FirebaseQueryArgs = ReadWriteArgs | BatchArgs;
@@ -106,7 +109,8 @@ const firebaseBaseQuery =
         const batch = writeBatch(db);
         for (const write of args.writes) {
           if (write.method === 'PUT') batch.set(docRef(write.url), write.data);
-          else batch.update(docRef(write.url), write.data);
+          else if (write.method === 'PATCH') batch.update(docRef(write.url), write.data);
+          else batch.delete(docRef(write.url));
         }
         await batch.commit();
         return { data: undefined };

@@ -112,6 +112,17 @@ service cloud.firestore {
           && request.resource.data.name.size() <= 40
           && (!request.resource.data.keys().hasAny(['lastSeenAt'])
               || request.resource.data.lastSeenAt is number);
+
+        // Leaving, and being shown out. A delete carries no `request.resource`, so it cannot go
+        // through the `write` rule above — the field checks there would be evaluated against
+        // nothing and deny it. That is why leaving a room was impossible before this rule
+        // existed, not a decision anybody made.
+        //
+        // The admin is allowed to remove somebody because a room fills up with people who closed
+        // their laptop and never came back, and presence marks them without clearing them.
+        // Nobody else can, and not in a room that has closed: what was voted there is a record.
+        allow delete: if isSignedIn() && isLive()
+          && (uid == request.auth.uid || isAdmin());
       }
 
       match /rounds/{roundId} {
@@ -159,7 +170,13 @@ service cloud.firestore {
             && (request.resource.data.value == '?'
                 || request.resource.data.value in deckValues(session().get('deck', 'modified')));
 
-          allow delete: if isSignedIn() && uid == request.auth.uid && isLive() && roundIsOpen();
+          // Your own vote, always. The admin's reach here is narrow and exists for one job: a
+          // participant being removed takes their vote with them, or the revealed cards would
+          // name somebody the room no longer has. `roundIsOpen()` still holds for both, so a
+          // revealed result cannot be rewritten by either of them — which is why removing
+          // somebody is offered only while the round is open.
+          allow delete: if isSignedIn() && isLive() && roundIsOpen()
+            && (uid == request.auth.uid || isAdmin());
         }
       }
     }

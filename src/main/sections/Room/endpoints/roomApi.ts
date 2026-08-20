@@ -104,6 +104,40 @@ export const roomApi = emptyApi.injectEndpoints({
       }),
     }),
 
+    renameParticipant: builder.mutation<void, { sessionId: string; userId: string; name: string }>({
+      query: ({ sessionId, userId, name }) => ({
+        url: `/sessions/${sessionId}/participants/${userId}`,
+        method: 'PATCH',
+        data: { name },
+      }),
+    }),
+
+    // Leaving takes your vote with you, and removing somebody takes theirs — otherwise the
+    // revealed cards would name a person the room no longer has. One batch, so a room can never
+    // be left holding a vote whose author is gone.
+    //
+    // `roundId` is absent when no round is open: there is nothing to clear, and a path built
+    // around a round that does not exist would be a write nobody can authorise.
+    removeParticipant: builder.mutation<
+      void,
+      { sessionId: string; userId: string; roundId?: string }
+    >({
+      query: ({ sessionId, userId, roundId }) => ({
+        method: 'BATCH',
+        writes: [
+          { url: `/sessions/${sessionId}/participants/${userId}`, method: 'DELETE' },
+          ...(roundId === undefined
+            ? []
+            : [
+                {
+                  url: `/sessions/${sessionId}/rounds/${roundId}/votes/${userId}`,
+                  method: 'DELETE' as const,
+                },
+              ]),
+        ],
+      }),
+    }),
+
     setDeck: builder.mutation<void, { sessionId: string; deck: DeckKey }>({
       query: ({ sessionId, deck }) => ({
         url: `/sessions/${sessionId}`,
@@ -169,6 +203,8 @@ export const {
   useFetchRoundVotesQuery,
   useAskQuestionMutation,
   useTouchPresenceMutation,
+  useRenameParticipantMutation,
+  useRemoveParticipantMutation,
   useCastVoteMutation,
   useClearVoteMutation,
   useSetDeckMutation,
