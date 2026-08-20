@@ -8,7 +8,10 @@ import { CARD_DECKS, deckKeyOf, PRESENCE_HEARTBEAT_MS, PRESENCE_TIMEOUT_MS } fro
 import type { CardValue, DeckKey } from '@/config';
 import { readStoredName, storeName } from '@/lib/storedName';
 import { useFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
-import { useEnsureParticipantMutation } from '@/main/sections/Home/endpoints/homeApi';
+import {
+  useCreateParticipantMutation,
+  useRenameParticipantMutation,
+} from '@/main/endpoints/participantsApi';
 import { errorMessage } from '@/store/queryError';
 import {
   useAskQuestionMutation,
@@ -23,7 +26,6 @@ import {
   useSubscribeRoundsQuery,
   useSubscribeVotesQuery,
   useTransferAdminMutation,
-  useRenameParticipantMutation,
   useRemoveParticipantMutation,
 } from '@/main/sections/Room/endpoints/roomApi';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
@@ -76,7 +78,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   const [revealVotes, { isLoading: revealing }] = useRevealVotesMutation();
   const [reopenRound, { isLoading: reopening }] = useReopenRoundMutation();
   const [setDeck, { isLoading: settingDeck }] = useSetDeckMutation();
-  const [ensureParticipant, { isLoading: joining }] = useEnsureParticipantMutation();
+  const [createParticipant, { isLoading: joining }] = useCreateParticipantMutation();
   const [extendSession, { isLoading: extending }] = useExtendSessionMutation();
   const [closeSession, { isLoading: closing }] = useCloseSessionMutation();
   const [transferAdmin] = useTransferAdminMutation();
@@ -275,12 +277,13 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   // Reaching a room by its link rather than through Home means never having been asked for a
   // name, so ask here instead of leaving an invisible participant who shows up as "Unknown"
-  // once the votes are revealed.
+  // once the votes are revealed. Always a create: the form below is only rendered when the
+  // participant list has loaded and does not hold this uid.
   const handleJoin = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     if (!session || !nameDraft.trim()) return;
     try {
-      await ensureParticipant({ sessionId: session.id, userId, name: nameDraft.trim() }).unwrap();
+      await createParticipant({ sessionId: session.id, userId, name: nameDraft.trim() }).unwrap();
       storeName(nameDraft.trim());
     } catch (err) {
       reportFailure(err, 'Could not join this session.');

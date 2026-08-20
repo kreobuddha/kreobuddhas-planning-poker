@@ -37,15 +37,8 @@ export const homeApi = emptyApi.injectEndpoints({
         ],
       }),
     }),
-    ensureParticipant: builder.mutation<void, { sessionId: string; userId: string; name: string }>({
-      query: ({ sessionId, userId, name }) => ({
-        url: `/sessions/${sessionId}/participants/${userId}`,
-        method: 'PUT',
-        data: { name, joinedAt: serverTimestamp(), lastSeenAt: Date.now() },
-      }),
-    }),
   }),
   overrideExisting: false,
 });
 
-export const { useCreateSessionMutation, useEnsureParticipantMutation } = homeApi;
+export const { useCreateSessionMutation } = homeApi;

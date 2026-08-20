@@ -6,10 +6,12 @@ import { Alert, Button, TextField } from '@kreobuddha/ui';
 import { NAME_MAX_LENGTH } from '@/config';
 import { generateSessionCode } from '@/lib/code';
 import { readStoredName, storeName } from '@/lib/storedName';
+import { useCreateSessionMutation } from '@/main/sections/Home/endpoints/homeApi';
 import {
-  useCreateSessionMutation,
-  useEnsureParticipantMutation,
-} from '@/main/sections/Home/endpoints/homeApi';
+  useCreateParticipantMutation,
+  useLazyFetchParticipantQuery,
+  useRenameParticipantMutation,
+} from '@/main/endpoints/participantsApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
 
@@ -28,7 +30,9 @@ const Home = ({ userId }: HomeProps): ReactElement => {
   const [joining, setJoining] = useState(false);
 
   const [createSession] = useCreateSessionMutation();
-  const [ensureParticipant] = useEnsureParticipantMutation();
+  const [fetchParticipant] = useLazyFetchParticipantQuery();
+  const [createParticipant] = useCreateParticipantMutation();
+  const [renameParticipant] = useRenameParticipantMutation();
   const [findSessionByCode] = useLazyFindSessionByCodeQuery();
 
   const handleCreate = async (e: FormEvent): Promise<void> => {
@@ -62,7 +66,15 @@ const Home = ({ userId }: HomeProps): ReactElement => {
     try {
       const code = joinCode.trim().toUpperCase();
       const session = await findSessionByCode(code).unwrap();
-      await ensureParticipant({ sessionId: session.id, userId, name: name.trim() }).unwrap();
+      // Rejoining a room you were already in must not rewrite `joinedAt` — the list is ordered
+      // by it and the rules freeze it, so a blind upsert would both reorder the room and be
+      // refused. One extra document read decides which write this is, and it is a read the room
+      // would have made a moment later anyway.
+      const existing = await fetchParticipant({ sessionId: session.id, userId }).unwrap();
+      const participant = { sessionId: session.id, userId, name: name.trim() };
+      await (existing
+        ? renameParticipant(participant).unwrap()
+        : createParticipant(participant).unwrap());
       storeName(name.trim());
       navigate(`/room/${code}`);
     } catch (err) {
