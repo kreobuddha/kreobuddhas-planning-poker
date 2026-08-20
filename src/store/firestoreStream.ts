@@ -1,7 +1,7 @@
 import { onSnapshot } from 'firebase/firestore';
 import type { DocumentReference, DocumentSnapshot, Query, QuerySnapshot } from 'firebase/firestore';
 import type { ReadWriteArgs } from '@/store/firebaseBaseQuery';
-import { applySelect, effectiveSelect, isCollection, resolveRef } from '@/store/firebaseBaseQuery';
+import { isCollection, resolveRef, snapshotData } from '@/store/firebaseBaseQuery';
 
 // Narrowed to "takes a thunk": this dispatch only ever forwards an endpoint's own upsert thunk,
 // and spelling out the store state here would tie the store layer to every api that uses it.
@@ -41,7 +41,7 @@ export const streamFrom =
     // overwrites it moments later with a read of the same collection.
     const args = toArgs(arg);
     const push = (snap: QuerySnapshot | DocumentSnapshot): void => {
-      const next = applySelect(snap, effectiveSelect(args)) as T;
+      const next = snapshotData(snap) as T;
       if (getCacheEntry().data === undefined) upsert(dispatch, arg, next);
       else updateCachedData(() => next);
     };
