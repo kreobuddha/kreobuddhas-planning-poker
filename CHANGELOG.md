@@ -24,6 +24,11 @@ not when an API does, because there is no public API here.
 
 ### Fixed
 
+- **The room header is valid HTML again.** The line carrying the rename form was a paragraph, and
+  a paragraph may not contain a form — so the browser quietly closed it early and rebuilt the
+  header differently from how it was written. Nothing looked wrong, but the markup the browser
+  ended up with was not the markup the app described, which is a bad foundation for anything.
+
 - **A room code that does not exist says so instead of showing a blank page.** Opening a mistyped
   or expired room link rendered "This room could not be opened" and then destroyed it a fraction of
   a second later, leaving nothing on screen at all. The listener behind the room was overwriting

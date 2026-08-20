@@ -45,7 +45,12 @@ const RoomHeader = ({
         <CopyLinkButton />
       </div>
 
-      <p className="room-header__line">
+      {/* A div rather than a paragraph: this line carries the rename form, and a `<form>` — or
+          the `<div>` the TextField draws inside it — is not phrasing content, so a `<p>` around
+          it is invalid. The browser closed the paragraph early and React logged the mismatch on
+          every render of the room. Nothing here needs to be a paragraph; it is a line of header
+          metadata, which is what the class has always called it. */}
+      <div className="room-header__line">
         Share this code with your team to let them join.
         {youAre !== null &&
           (draft === null ? (
@@ -82,7 +87,7 @@ const RoomHeader = ({
               </Button>
             </form>
           ))}
-      </p>
+      </div>
 
       <Dialog
         open={confirmingLeave}
