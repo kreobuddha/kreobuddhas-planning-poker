@@ -9,6 +9,11 @@ not when an API does, because there is no public API here.
 
 ### Fixed
 
+- **The theme toggle no longer does its work inside a state updater.** Nothing looks different —
+  writing the DOM attribute and the stored choice twice lands on the same result — but React is
+  free to call an updater more than once for one state change, and StrictMode does. Both effects
+  now happen in the click handler, where they belong.
+
 - **Rejoining a room keeps your place in it.** Coming back to a room you had already joined used
   to rewrite the moment you joined, and the list is ordered by that moment — so a returning member
   was sent to the bottom, below people who arrived after them. Joining now writes the row once and
