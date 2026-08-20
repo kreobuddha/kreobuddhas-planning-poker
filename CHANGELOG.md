@@ -7,6 +7,8 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-20
+
 ### Added
 
 - **The session code field corrects what you type instead of failing on it.** A code copied out of
