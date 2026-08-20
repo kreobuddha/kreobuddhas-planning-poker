@@ -39,7 +39,8 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   selects light or dark. It is set before the first paint by the inline script in `index.html`
   (stored choice, otherwise `prefers-color-scheme`) and rewritten by `ThemeToggle`; the storage
   key and the light/dark logic live in `src/lib/theme.ts` and are duplicated in that script on
-  purpose, since a synchronous inline script cannot import a module. Exports available: `Accordion`, `Alert`, `Badge`,
+  purpose, since a synchronous inline script cannot import a module. Exports available:
+  `Accordion`, `Alert`, `Badge`,
   `Button`, `IconButton`, `Progress`, `Skeleton`, `Spinner`, `TextField`, `Textarea`,
   `Select`, `Checkbox`, `Radio`, `Switch`, `FieldGroup`, `Tabs`, `ToastProvider`/`useToast`,
   `Toggletip`, `Tooltip`, `Dialog`. Reach for one of these before hand-rolling markup.
@@ -47,14 +48,17 @@ reveal together. See [README.md](README.md) for setup and product behavior.
   `firebase/firestore.rules` for the security model
 - Redux Toolkit + RTK Query for the endpoints layer (see "Endpoints layer" below) — deliberately
   added despite the no-abstractions rule further down; don't strip it back out
-- `src/components/` — shared UI, one folder per component (VoteCards, ParticipantList, Results,
-  DeckPicker, CopyLinkButton)
+- `src/components/` — shared UI, one folder per component (AppHeader, ThemeToggle, VoteCards,
+  ParticipantList, Results, DeckPicker, CopyLinkButton)
+- `src/hooks/` — flat, single-file hooks (`useTheme`), per `docs/code-rules.md`
 - `src/store/` — `configureStore` (`index.ts`), `rootReducer.ts`, the shared empty RTK Query API
   instance (`emptyApi.ts`), and the fake-backend layer: `firebaseBaseQuery.ts` +
   `firestoreStream.ts` (see "Endpoints layer" below)
 - `src/auth/` — `userSlice` (uid/loading/error), `useCheckAuth` (anonymous sign-in bootstrap),
   `store/authApi.ts` (the `signInAnonymously` endpoint)
-- `src/lib/` — Firebase client init, session code generator, remembered participant name
+- `src/lib/` — Firebase client init, session code generator, remembered participant name,
+  remembered theme (`theme.ts` — its storage key is duplicated by the inline script in
+  `index.html`, which cannot import a module; change both together)
 - `src/config.ts` — the card decks (`CARD_DECKS`, `DEFAULT_DECK`) and `deckKeyOf`, which falls
   back to the default rather than trusting a `deck` string that came out of Firestore; plus every
   constant the client shares with the rules: `UNSURE_CARD`, `NAME_MAX_LENGTH`,
@@ -168,7 +172,10 @@ instead of relative paths). Beyond those:
   rewritten.
 - Security rules live in `firebase/firestore.rules`. Before deploying a rules change, check it
   against the read/write cases in the README's "How it works" section — especially that a vote
-  can't be written or deleted once `revealed` is true.
+  can't be written or deleted once `revealed` is true. Note the one asymmetry: the admin may
+  delete another participant's vote while the round is open, because removing somebody has to take
+  their vote with them; nobody may ever change another person's vote, and neither may touch one
+  after the reveal.
 
 ## AI workflow rules
 
