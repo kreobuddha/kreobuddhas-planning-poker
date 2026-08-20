@@ -35,8 +35,11 @@ reveal together. See [README.md](README.md) for setup and product behavior.
 ## Stack & structure
 
 - React + TypeScript + Vite
-- `@kreobuddha/ui` 1.0.0 — the component library and design tokens; the theme is pinned to
-  `data-kreo-theme="dark"` in `index.html`. Exports available: `Accordion`, `Alert`, `Badge`,
+- `@kreobuddha/ui` 1.0.0 — the component library and design tokens; `data-kreo-theme` on `<html>`
+  selects light or dark. It is set before the first paint by the inline script in `index.html`
+  (stored choice, otherwise `prefers-color-scheme`) and rewritten by `ThemeToggle`; the storage
+  key and the light/dark logic live in `src/lib/theme.ts` and are duplicated in that script on
+  purpose, since a synchronous inline script cannot import a module. Exports available: `Accordion`, `Alert`, `Badge`,
   `Button`, `IconButton`, `Progress`, `Skeleton`, `Spinner`, `TextField`, `Textarea`,
   `Select`, `Checkbox`, `Radio`, `Switch`, `FieldGroup`, `Tabs`, `ToastProvider`/`useToast`,
   `Toggletip`, `Tooltip`, `Dialog`. Reach for one of these before hand-rolling markup.

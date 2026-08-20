@@ -74,7 +74,10 @@ const Home = ({ userId }: HomeProps): ReactElement => {
 
   return (
     <div className="home">
-      <h1>Planning Poker</h1>
+      {/* The brand in the app header is a link, not a heading, so without this the page would
+          have no level-one heading at all. Hidden rather than drawn: showing it would print the
+          product name twice on the one screen where the header sits right above it. */}
+      <h1 className="visually-hidden">Planning Poker</h1>
       <p className="home__subtitle">Estimate together, in person-days.</p>
 
       <TextField
