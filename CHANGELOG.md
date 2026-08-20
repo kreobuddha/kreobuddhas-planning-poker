@@ -7,6 +7,14 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Added
+
+- **The session code field corrects what you type instead of failing on it.** A code copied out of
+  a chat message arrives with a trailing space, or in lowercase, or wrapped in punctuation; all of
+  that is now dropped as you type, the field stops at six characters, and autocomplete and
+  spellcheck are off. Every character it removes is one no code can contain, so nothing typed in
+  good faith is lost.
+
 ### Changed
 
 - **A long meeting's history is drawn ten questions at a time.** Every row of the history reads

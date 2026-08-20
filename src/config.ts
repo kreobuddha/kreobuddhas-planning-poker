@@ -61,3 +61,9 @@ export const PRESENCE_TIMEOUT_MS = 3 * PRESENCE_HEARTBEAT_MS;
 // questions behind it therefore costs fifty collection reads per person per visit, none of which
 // anybody asked to see. Ten is what fits on a screen; the rest arrive when they are wanted.
 export const ROUND_HISTORY_PAGE_SIZE = 10;
+
+// A join code is exactly this long — `generateSessionCode` draws it and the field on Home accepts
+// nothing longer. Not mirrored in firebase/firestore.rules, and it does not need to be: the code
+// is the session's document id, so a code of the wrong length simply addresses a document that
+// does not exist.
+export const SESSION_CODE_LENGTH = 6;
