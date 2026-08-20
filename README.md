@@ -245,11 +245,16 @@ src/
   auth/         userSlice (uid/loading/error), useCheckAuth, store/authApi
   components/   AppHeader, ThemeToggle, VoteCards, ParticipantList, Results, DeckPicker,
                 CopyLinkButton
-  hooks/        useTheme (light/dark, remembered)
+  hooks/        useTheme (light/dark, remembered) — hooks shared across the app; a hook only
+                one section uses sits beside that section instead
   lib/          Firebase client, session code generator, Timestamp conversion, theme storage
   main/
-    endpoints/  sessionsApi (cross-section: look a session up by code)
-    sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/
+    endpoints/  cross-section: sessionsApi (look a session up by code),
+                participantsApi (read, create and rename your own participant row)
+    sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/;
+                Room also has components/ and its own hooks — usePresence, useRoomData
+                (subscriptions and what follows from them), useRoomActions (mutations and
+                handlers)
   store/        configureStore, emptyApi, firebaseBaseQuery, firestoreStream
   config.ts     Card decks
   types.ts      ISession, IParticipant, IRound, IVote
