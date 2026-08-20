@@ -40,6 +40,17 @@ not when an API does, because there is no public API here.
 
 ### Changed
 
+- **The room shows what it is doing.** Pressing "Make admin" on one person used to put a spinner
+  in every other row, because the flag said only that a handover was happening, not whose; now it
+  names the row. Your own row is marked _you_, the card you hold lifts under the pointer, a
+  participant fading to _away_ fades rather than blinks, and the revealed cards arrive with a
+  motion that marks a reveal as an event rather than a repaint. Every one of those is dropped
+  entirely under `prefers-reduced-motion`. Past rounds no longer claim "no votes" for a second
+  before the average lands, a long name in the sidebar truncates instead of wrapping, and the two
+  buttons on the home page hold each other while either is in flight.
+- **You always count as present in your own room.** Presence was read from your own row like
+  everybody else's, so a beat that had not been sent yet could leave the tally reading "Voted 0 of
+  0" on a screen with somebody sitting in front of it.
 - **A closed room takes everyone in it home.** It used to replace the screen with a notice and
   leave people standing in a room that accepted nothing; now the deadline is waited out exactly
   rather than polled every five seconds, and when it passes — or when the admin closes the room —

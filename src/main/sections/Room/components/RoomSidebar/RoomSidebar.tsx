@@ -14,10 +14,11 @@ interface RoomSidebarProps {
   loading: boolean;
   sessionId: string;
   pastRounds: IRound[];
+  youId: string;
   onMakeAdmin?: (userId: string) => void;
-  handingOver: boolean;
+  handingOverId: string | null;
   onRemove?: (userId: string) => void;
-  removing: boolean;
+  removingId: string | null;
 }
 
 const RoomSidebar = ({
@@ -29,10 +30,11 @@ const RoomSidebar = ({
   loading,
   sessionId,
   pastRounds,
+  youId,
   onMakeAdmin,
-  handingOver,
+  handingOverId,
   onRemove,
-  removing,
+  removingId,
 }: RoomSidebarProps): ReactElement => {
   return (
     <aside className="room-sidebar">
@@ -52,10 +54,11 @@ const RoomSidebar = ({
           presentIds={presentIds}
           revealed={revealed}
           adminId={adminId}
+          youId={youId}
           onMakeAdmin={onMakeAdmin}
-          handingOver={handingOver}
+          handingOverId={handingOverId}
           onRemove={onRemove}
-          removing={removing}
+          removingId={removingId}
         />
       )}
 

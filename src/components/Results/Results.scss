@@ -47,3 +47,23 @@
     color: var(--kreo-text-primary);
   }
 }
+
+// The cards arrive all at once, when somebody else presses Reveal. Fading them in marks that as
+// an event rather than a repaint — and it is the only animation in the app that carries meaning,
+// so it is the only one with any distance to travel.
+.results__grid {
+  animation: results-reveal 220ms ease-out;
+}
+
+@keyframes results-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results__grid {
+    animation: none;
+  }
+}

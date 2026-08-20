@@ -11,16 +11,19 @@ interface ParticipantListProps {
   presentIds: Set<string>;
   revealed: boolean;
   adminId: string;
+  /** The reader's own uid, so their row can say which one it is. */
+  youId: string;
   /** Absent for everyone but the admin, which is what hides the handover control. */
   onMakeAdmin?: (userId: string) => void;
-  handingOver?: boolean;
+  /** Whose handover is in flight, not whether one is: a shared flag spins every row at once. */
+  handingOverId?: string | null;
   /**
    * Absent unless the reader is the admin and the round is open. Removing somebody takes their
    * vote with them, and a vote cannot be cleared once the cards are on the table — so the
    * control is not offered then rather than offered and refused.
    */
   onRemove?: (userId: string) => void;
-  removing?: boolean;
+  removingId?: string | null;
 }
 
 const ParticipantList = ({
@@ -29,10 +32,11 @@ const ParticipantList = ({
   presentIds,
   revealed,
   adminId,
+  youId,
   onMakeAdmin,
-  handingOver = false,
+  handingOverId = null,
   onRemove,
-  removing = false,
+  removingId = null,
 }: ParticipantListProps): ReactElement => {
   return (
     <ul className="participant-list">
@@ -45,7 +49,8 @@ const ParticipantList = ({
           )}
         >
           <span className="participant-list__name">
-            {p.name}
+            <span className="participant-list__who">{p.name}</span>
+            {p.id === youId && <Badge>you</Badge>}
             {p.id === adminId && <Badge tone="accent">admin</Badge>}
           </span>
           {/* Once the cards are on the table they say who voted, so the badge drops away — but
@@ -75,7 +80,7 @@ const ParticipantList = ({
             <Button
               size="sm"
               variant="ghost"
-              loading={handingOver}
+              loading={handingOverId === p.id}
               onClick={() => onMakeAdmin(p.id)}
             >
               Make admin
@@ -88,7 +93,7 @@ const ParticipantList = ({
               size="sm"
               variant="ghost"
               danger
-              loading={removing}
+              loading={removingId === p.id}
               onClick={() => onRemove(p.id)}
             >
               Remove
