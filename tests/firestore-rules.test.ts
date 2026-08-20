@@ -350,12 +350,38 @@ describe('participants', () => {
     );
   });
 
-  it('rejects an empty name and any field beyond name and joinedAt', async () => {
+  it('rejects an empty name and any field the model does not have', async () => {
     const db = asUser(STRANGER);
     const path = `${sessionPath}/participants/${STRANGER}`;
     await assertFails(setDoc(doc(db, path), { name: '', joinedAt: Date.now() }));
     await assertFails(
       setDoc(doc(db, path), { name: 'Stranger', joinedAt: Date.now(), role: 'observer' })
+    );
+  });
+
+  // Presence is a beat on your own row and nothing more. What it must never become is a way to
+  // write on somebody else's row, or to smuggle a field past the model — the beat travels on
+  // the same `write` rule the name does.
+  it('takes a presence beat on your own row, as a number, and nowhere else', async () => {
+    const member = asUser(MEMBER);
+    await assertSucceeds(
+      updateDoc(doc(member, `${sessionPath}/participants/${MEMBER}`), { lastSeenAt: Date.now() })
+    );
+    await assertFails(
+      updateDoc(doc(member, `${sessionPath}/participants/${ADMIN}`), { lastSeenAt: Date.now() })
+    );
+    await assertFails(
+      updateDoc(doc(member, `${sessionPath}/participants/${MEMBER}`), { lastSeenAt: 'now' })
+    );
+  });
+
+  // The beat is a write, so it stops at the deadline like every other write. A tab left open on
+  // a closed room cannot keep reporting itself as present in it.
+  it('refuses a presence beat once the room has closed', async () => {
+    await assertFails(
+      updateDoc(doc(asUser(MEMBER), `${expiredSessionPath}/participants/${MEMBER}`), {
+        lastSeenAt: Date.now(),
+      })
     );
   });
 

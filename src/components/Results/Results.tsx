@@ -7,9 +7,10 @@ import type { IParticipant, IVote } from '@/types';
 interface ResultsProps {
   votes: IVote[];
   participants: IParticipant[];
+  presentIds: Set<string>;
 }
 
-const Results = ({ votes, participants }: ResultsProps): ReactElement => {
+const Results = ({ votes, participants, presentIds }: ResultsProps): ReactElement => {
   const nameFor = (participantId: string): string =>
     participants.find((p) => p.id === participantId)?.name ?? 'Unknown';
 
@@ -39,13 +40,18 @@ const Results = ({ votes, participants }: ResultsProps): ReactElement => {
         ))}
         {/* A missing vote is a result too: without it the room cannot tell an absent estimate
             from an estimate that happens to agree with everyone else's. */}
+        {/* Silence has two meanings and the room can tell them apart: somebody present who chose
+            not to answer, and somebody whose tab stopped beating before the question was put.
+            Reading the second as the first would make an absence look like a refusal. */}
         {silent.map((p) => (
           <div key={p.id} className="results__card results__card--aside">
             <div className="results__value" aria-hidden="true">
               —
             </div>
             <div className="results__name">{p.name}</div>
-            <div className="results__note">did not vote</div>
+            <div className="results__note">
+              {presentIds.has(p.id) ? 'did not vote' : 'was away'}
+            </div>
           </div>
         ))}
       </div>

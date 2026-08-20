@@ -98,11 +98,20 @@ service cloud.firestore {
 
       match /participants/{uid} {
         allow read: if isSignedIn();
+
+        // `lastSeenAt` is the presence beat: millis on the writer's own clock, because a pending
+        // serverTimestamp() reads back as null and would show the writer as away to itself. The
+        // rules bound its shape and nothing else — how stale a beat has to be before the room
+        // stops counting on somebody is the client's decision, and being marked away withholds
+        // no permission. It is optional so that a row written before presence existed still
+        // validates.
         allow write: if isSignedIn() && uid == request.auth.uid && isLive()
-          && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
+          && request.resource.data.keys().hasOnly(['name', 'joinedAt', 'lastSeenAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
-          && request.resource.data.name.size() <= 40;
+          && request.resource.data.name.size() <= 40
+          && (!request.resource.data.keys().hasAny(['lastSeenAt'])
+              || request.resource.data.lastSeenAt is number);
       }
 
       match /rounds/{roundId} {

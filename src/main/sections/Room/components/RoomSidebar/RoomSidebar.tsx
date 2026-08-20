@@ -8,6 +8,7 @@ import type { IParticipant, IRound } from '@/types';
 interface RoomSidebarProps {
   participants: IParticipant[];
   votedIds: Set<string>;
+  presentIds: Set<string>;
   revealed: boolean;
   adminId: string;
   loading: boolean;
@@ -20,6 +21,7 @@ interface RoomSidebarProps {
 const RoomSidebar = ({
   participants,
   votedIds,
+  presentIds,
   revealed,
   adminId,
   loading,
@@ -43,6 +45,7 @@ const RoomSidebar = ({
         <ParticipantList
           participants={participants}
           votedIds={votedIds}
+          presentIds={presentIds}
           revealed={revealed}
           adminId={adminId}
           onMakeAdmin={onMakeAdmin}

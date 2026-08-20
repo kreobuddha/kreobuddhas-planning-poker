@@ -33,3 +33,9 @@
     flex: 0 0 auto;
   }
 }
+
+// Dimmed rather than removed: the room still has to show who is expected back, and a list that
+// dropped people would make a reveal look complete when it is not.
+.participant-list__item--away {
+  opacity: 0.55;
+}

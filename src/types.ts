@@ -18,6 +18,12 @@ export interface IParticipant {
   id: string;
   name: string;
   joinedAt: number;
+  // Millis on the writer's own clock, not a serverTimestamp(): a pending sentinel reads back as
+  // null locally, so the tab writing the beat would show itself as away until the server
+  // acknowledged it. The cost is clock skew between machines — the same trade already made for
+  // `expiresAt`, which is compared against Date.now() too. Optional: a row written before
+  // presence existed carries no beat, and is read as present rather than as a ghost.
+  lastSeenAt?: number;
 }
 
 export interface IRound {
