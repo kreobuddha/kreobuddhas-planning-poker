@@ -1,11 +1,17 @@
-// Colour, type and shape all come from @kreobuddha/ui's token layer — see the `data-kreo-theme`
-// attribute in index.html. The app deliberately keeps no palette of its own, so the library
-// stays the single source of truth for how everything looks.
+// Colour, type and shape all come from @kreobuddha/ui's token layer, switched by the
+// `data-kreo-theme` attribute the theme toggle writes on <html>. The app deliberately keeps no
+// palette of its own, so the library stays the single source of truth for how everything looks.
 :root {
   font-family: var(--kreo-font-sans);
-  color-scheme: dark;
+  color-scheme: light;
   color: var(--kreo-text-primary);
   background: var(--kreo-surface-page);
+}
+
+// Scrollbars and native controls are painted by the browser, not by the token layer, so
+// `color-scheme` has to follow the attribute rather than be pinned to one theme.
+:root[data-kreo-theme='dark'] {
+  color-scheme: dark;
 }
 
 * {
@@ -50,6 +56,6 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100dvh;
+  min-height: 60dvh;
   color: var(--kreo-text-muted);
 }

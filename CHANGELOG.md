@@ -7,6 +7,24 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Added
+
+- **A light theme, and a switch for it.** The interface was pinned to the dark palette by an
+  attribute written into `index.html`, though the component library has carried a light one all
+  along. The switch sits in a new application header beside the product name, on every screen —
+  including the ones that come before a room loads. A first visit follows the operating system's
+  preference; after that the remembered choice is what decides, and it is the only thing that
+  overrides the system. The attribute is set by a small synchronous script before the first paint
+  rather than from the app, because doing it in React would show one frame of the wrong theme to
+  everyone who picked dark.
+
+### Changed
+
+- **The room's "← Home" link is gone.** The product name in the new header leads home from every
+  screen, and two links to the same place in two stacked headers is noise. The home page likewise
+  drops its own heading — the header already carries the name — and keeps a hidden one so the
+  page still has a level-one heading to announce.
+
 ## [0.3.1] — 2026-08-19
 
 ### Fixed

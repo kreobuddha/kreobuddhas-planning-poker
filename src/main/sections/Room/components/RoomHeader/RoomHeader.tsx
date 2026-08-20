@@ -1,6 +1,5 @@
 import './RoomHeader.scss';
 import type { ReactElement } from 'react';
-import { Link } from 'react-router-dom';
 import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
 
 interface RoomHeaderProps {
@@ -12,9 +11,6 @@ interface RoomHeaderProps {
 const RoomHeader = ({ code, youAre }: RoomHeaderProps): ReactElement => {
   return (
     <header className="room-header">
-      <Link to="/" className="room-header__back">
-        ← Home
-      </Link>
       <div className="room-header__title-row">
         <h1>Session {code}</h1>
         <CopyLinkButton />

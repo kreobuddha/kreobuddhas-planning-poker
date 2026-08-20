@@ -3,18 +3,6 @@
   margin: 0 0 2rem;
 }
 
-.room-header__back {
-  display: inline-block;
-  margin-bottom: 0.75rem;
-  color: var(--kreo-text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-
-  &:hover {
-    color: var(--kreo-text-primary);
-  }
-}
-
 .room-header__title-row {
   display: flex;
   align-items: center;
