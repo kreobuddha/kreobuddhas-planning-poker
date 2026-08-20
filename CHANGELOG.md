@@ -7,6 +7,24 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rejoining a room keeps your place in it.** Coming back to a room you had already joined used
+  to rewrite the moment you joined, and the list is ordered by that moment — so a returning member
+  was sent to the bottom, below people who arrived after them. Joining now writes the row once and
+  only updates the name afterwards.
+
+### Security
+
+- **Every field the client writes now has a type the rules check.** Bounding which keys a document
+  may carry says nothing about what those keys hold, so a participant could write an arbitrarily
+  long string as their own join time — and every tab subscribed to the room downloaded it.
+  `createdAt` on sessions and votes, and `joinedAt` on participants, are now required to be
+  timestamps.
+- **A participant's join time is frozen once written.** It orders the room, so being able to
+  rewrite it was a way to move yourself in the list. Changing your name and reporting that you are
+  still present are unaffected.
+
 ## [0.4.0] — 2026-08-20
 
 ### Added
