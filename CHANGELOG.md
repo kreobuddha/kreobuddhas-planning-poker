@@ -11,6 +11,12 @@ not when an API does, because there is no public API here.
 
 ### Added
 
+- **The README now says what a closed room leaves behind, and what to do about it.** Closing a
+  room stops writes to it and deletes nothing, so a project running this app keeps every session
+  ever created. Removing them is a TTL policy set by hand in the Firebase console — nothing in
+  this repository does it or can check that it was done, and the new "What happens to the data"
+  section says so, including the part a TTL policy does not clean up.
+
 - **The session code field corrects what you type instead of failing on it.** A code copied out of
   a chat message arrives with a trailing space, or in lowercase, or wrapped in punctuation; all of
   that is now dropped as you type, the field stops at six characters, and autocomplete and
@@ -56,6 +62,11 @@ not when an API does, because there is no public API here.
 - **A participant's join time is frozen once written.** It orders the room, so being able to
   rewrite it was a way to move yourself in the list. Changing your name and reporting that you are
   still present are unaffected.
+
+  Upgrading has one narrow consequence, worth knowing about for the few minutes it lasts: a tab
+  still running the previous version writes a fresh join time whenever it rejoins a room, which
+  these rules now refuse. Such a tab reports that it could not join until it is reloaded. Nothing
+  is lost and reloading is the whole fix.
 
 ## [0.4.0] — 2026-08-20
 
