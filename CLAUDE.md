@@ -94,11 +94,11 @@ Firestore never speaks HTTP — and it maps as:
 
 Descriptor details: **doc vs collection is inferred from path arity** — odd segment count is a
 collection (`sessions`, `sessions/x/rounds`), even is a document (`sessions/x`). `params` carries
-`where`/`orderBy`/`limit`. `select` reduces a collection read (`'array'` default, `'first'`);
-`effectiveSelect` resolves it once so the fetch and the stream can't reduce the same snapshot
-differently. `notFound` turns a read that found nothing into an error, which is how
-`findSessionByCode` reports a bad code. A read that fails always reports the failure — an empty
-room and an unreadable one must not look alike to the UI.
+`where`/`orderBy`/`limit`. A read is reduced by `snapshotData` and by nothing else — a document
+becomes an object or `null`, a collection becomes an array — so the fetch and the stream cannot
+reduce the same snapshot differently. `notFound` turns a read that found nothing into an error,
+which is how `findSessionByCode` reports a bad code. A read that fails always reports the
+failure — an empty room and an unreadable one must not look alike to the UI.
 
 A session's join code IS its document id (`sessions/{CODE}`), so a room is reached with a `get`.
 That's what lets the rules deny `list` on `/sessions` outright, and it makes a code collision a
@@ -107,7 +107,7 @@ rejected write instead of a second team silently landing in the first team's roo
 Live data still needs `onCacheEntryAdded`, because `BaseQueryFn` resolves exactly once and has
 no channel for later values. `streamFrom` in `src/store/firestoreStream.ts` bridges the two: an
 endpoint names its descriptor builder once and passes it to _both_ `query` and `streamFrom`, so
-the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `applySelect` and can't
+the initial fetch and the `onSnapshot` stream run the same `resolveRef` + `snapshotData` and can't
 drift apart. Subscribed endpoints therefore do one real read on mount (making `isLoading`
 meaningful) and stay live after.
 

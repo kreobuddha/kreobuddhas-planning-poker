@@ -27,10 +27,6 @@ import { db } from '@/lib/firebase';
 import { withMillis } from '@/lib/firestoreDoc';
 import { queryError, toQueryError } from '@/store/queryError';
 
-// How a collection read is reduced before it reaches the cache. Ignored for document URLs,
-// which are inherently single.
-export type Select = 'array' | 'first';
-
 export interface ReadWriteArgs {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -40,11 +36,9 @@ export interface ReadWriteArgs {
     orderBy?: [string, 'asc' | 'desc'][];
     limit?: number;
   };
-  select?: Select;
-  // A collection GET that must yield exactly one document, e.g. lookup by unique code.
-  single?: boolean;
-  // Turns a GET that found nothing — a missing document, or an empty `single` query — into an
-  // error carrying this message, instead of a `null` the caller has to interpret.
+  // Turns a GET that found nothing into an error carrying this message, instead of a `null` the
+  // caller has to interpret. `findSessionByCode` is what this exists for: a bad code has to
+  // reach the UI as "no such room", not as an empty read.
   notFound?: string;
 }
 
@@ -87,20 +81,10 @@ const toEntity = (snap: { id: string; data: () => DocumentData | undefined }): D
   ...withMillis((snap.data() ?? {}) as Record<string, unknown>),
 });
 
-// `single` implies 'first'. Shared so the initial fetch and the live stream reduce a snapshot
-// identically — otherwise a `single` subscribed endpoint would fetch one object and then
-// stream an array over it.
-export const effectiveSelect = (args: ReadWriteArgs): Select =>
-  args.select ?? (args.single ? 'first' : 'array');
-
-export const applySelect = (
-  snap: QuerySnapshot | DocumentSnapshot,
-  select: Select = 'array'
-): unknown => {
-  if (!('docs' in snap)) return snap.exists() ? toEntity(snap) : null;
-  if (select === 'first') return snap.docs[0] ? toEntity(snap.docs[0]) : null;
-  return snap.docs.map(toEntity);
-};
+// Shared so the initial fetch and the live stream reduce a snapshot identically — the two would
+// otherwise be free to disagree about the shape of the same read.
+export const snapshotData = (snap: QuerySnapshot | DocumentSnapshot): unknown =>
+  'docs' in snap ? snap.docs.map(toEntity) : snap.exists() ? toEntity(snap) : null;
 
 const firebaseBaseQuery =
   (): BaseQueryFn<FirebaseQueryArgs, unknown, FetchBaseQueryError> => async (args) => {
@@ -135,7 +119,7 @@ const firebaseBaseQuery =
           const snap = isCollection(args.url)
             ? await getDocs(ref as Query)
             : await getDoc(ref as ReturnType<typeof docRef>);
-          const result = applySelect(snap, effectiveSelect(args));
+          const result = snapshotData(snap);
           if (args.notFound !== undefined && result === null) return queryError(args.notFound);
           return { data: result };
         }
