@@ -167,19 +167,40 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
   the rules; showing progress won.
 - What the rules ([`firebase/firestore.rules`](firebase/firestore.rules)) do enforce: you can
   only write your own vote, and only while the round is open — so a revealed result can't be
-  rewritten while it stands. A reveal is not final, though: the admin can reopen a round, which
-  puts the cards back on the table with every vote already cast still in place.
+  rewritten while it stands. The admin may _delete_ somebody else's vote, and only theirs to
+  delete rather than to change: removing a participant takes their vote with them, or the revealed
+  cards would name a person the room no longer has. That reach stops at the same place every other
+  write does, `roundIsOpen()`, which is why removing somebody is offered only while the round is
+  open. A reveal is not final, though: the admin can reopen a round, which puts the cards back on
+  the table with every vote already cast still in place.
 - Picking the card you already selected clears your vote and puts you back to _waiting_. "?" is a
   vote like any other in that respect — it is cast and cleared the same way — but it is left out
   of the average and the spread, and its author is named in the results as not counted.
-- A room has a deadline. Writes stop once it passes, reads do not: an expired room can still be
-  read, it just can't be voted in. The admin is warned beforehand and can push the deadline back
-  while the room is live, never further ahead than the ceiling the rules enforce. "Close room"
-  is the same state reached deliberately — it brings the deadline forward to now — so closed and
+- A room has a deadline. Writes stop once it passes; the rules still allow reads, but the app
+  no longer shows a room it cannot write to — everyone in it is taken back to the home page and
+  told the room has closed. The admin is warned beforehand and can push the deadline back while
+  the room is live, never further ahead than the ceiling the rules enforce. "Close room" is the
+  same state reached deliberately — it brings the deadline forward to now — so closed and
   expired are one state rather than two, and neither can be undone.
+- Anyone can leave a room, and the admin can show somebody out; either way the person's vote in
+  the open round goes with them, so the revealed cards never name somebody the room no longer
+  has. Removing is offered only while the round is open, because a revealed result must not be
+  rewritten. An admin who still has somebody to hand the room to has to hand it over before
+  leaving: the rules only accept a new admin who is already a participant, so an admin who left
+  first would strand the room.
+- A room shows who is actually in it. Each tab reports itself while it is visible and stops when
+  it is not, so somebody who closed their laptop is marked _away_ rather than counted among the
+  people the room is still waiting for.
 - The admin can hand the role to anyone already in the room. The rules check that the new admin
   is a participant, because handing the room to a uid that never joined would strand it exactly
   as losing the admin does.
+- Your name can be changed from inside the room, not only on the way in — the room shows the new
+  one to everybody at once, and remembers it for the next room you open.
+- The interface comes in light and dark. A first visit follows the operating system's preference;
+  after that the choice you made in the header is what decides, and it is remembered. The theme is
+  set before the first paint by a small script in `index.html` rather than by the app, so nobody
+  sees a frame of the wrong one — which is why the storage key is deliberately written twice,
+  there and in `src/lib/theme.ts`, with a comment on both sides.
 - Past rounds stay beside the room with the average they were estimated at, so a session reads as
   a record of the meeting rather than one live question.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
@@ -190,8 +211,10 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
 ```
 src/
   auth/         userSlice (uid/loading/error), useCheckAuth, store/authApi
-  components/   VoteCards, ParticipantList, Results, DeckPicker, CopyLinkButton
-  lib/          Firebase client, session code generator, Timestamp conversion
+  components/   AppHeader, ThemeToggle, VoteCards, ParticipantList, Results, DeckPicker,
+                CopyLinkButton
+  hooks/        useTheme (light/dark, remembered)
+  lib/          Firebase client, session code generator, Timestamp conversion, theme storage
   main/
     endpoints/  sessionsApi (cross-section: look a session up by code)
     sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/

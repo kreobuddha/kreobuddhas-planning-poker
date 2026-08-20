@@ -8,25 +8,33 @@ import type { IParticipant, IRound } from '@/types';
 interface RoomSidebarProps {
   participants: IParticipant[];
   votedIds: Set<string>;
+  presentIds: Set<string>;
   revealed: boolean;
   adminId: string;
   loading: boolean;
   sessionId: string;
   pastRounds: IRound[];
+  youId: string;
   onMakeAdmin?: (userId: string) => void;
-  handingOver: boolean;
+  handingOverId: string | null;
+  onRemove?: (userId: string) => void;
+  removingId: string | null;
 }
 
 const RoomSidebar = ({
   participants,
   votedIds,
+  presentIds,
   revealed,
   adminId,
   loading,
   sessionId,
   pastRounds,
+  youId,
   onMakeAdmin,
-  handingOver,
+  handingOverId,
+  onRemove,
+  removingId,
 }: RoomSidebarProps): ReactElement => {
   return (
     <aside className="room-sidebar">
@@ -43,10 +51,14 @@ const RoomSidebar = ({
         <ParticipantList
           participants={participants}
           votedIds={votedIds}
+          presentIds={presentIds}
           revealed={revealed}
           adminId={adminId}
+          youId={youId}
           onMakeAdmin={onMakeAdmin}
-          handingOver={handingOver}
+          handingOverId={handingOverId}
+          onRemove={onRemove}
+          removingId={removingId}
         />
       )}
 

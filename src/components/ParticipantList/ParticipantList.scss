@@ -11,14 +11,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.5rem 0.5rem;
   font-size: 0.9rem;
+  // The row carries a name and up to three badges in a sidebar narrow enough that they do not
+  // always fit. Wrapping is what happens then: a badge is one word and must never be broken
+  // across lines, and without this the badges overlap each other instead of moving down.
+  flex-wrap: wrap;
 
-  // A badge is one word and must never be broken across lines by a narrow sidebar. The name is
-  // the only part allowed to give up space, and it truncates rather than wrapping.
   > * {
     flex: 0 0 auto;
   }
+}
+
+// A long name is the only part allowed to give up space: it truncates rather than wrapping onto
+// a second line, which in a sidebar this narrow it otherwise does.
+.participant-list__who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  // A floor, not a preference: with three badges beside it in a narrow sidebar the name is the
+  // only part that can give way, and without this it gives way entirely and disappears.
+  min-width: 4ch;
 }
 
 // The two badges bring their own type, colour and shape; the name only has to sit beside one.
@@ -26,10 +39,35 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
+  flex-wrap: wrap;
 
   > * {
     flex: 0 0 auto;
+  }
+
+  .participant-list__who {
+    flex: 1 1 auto;
+  }
+}
+
+// Dimmed rather than removed: the room still has to show who is expected back, and a list that
+// dropped people would make a reveal look complete when it is not.
+//
+// Faded over a beat rather than switched: this is the one change in the room that happens with
+// nobody touching anything, and a row that blinks reads as a glitch rather than as somebody
+// stepping away.
+.participant-list__item {
+  transition: opacity 200ms ease;
+}
+
+.participant-list__item--away {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .participant-list__item {
+    transition: none;
   }
 }

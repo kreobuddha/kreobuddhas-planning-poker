@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="en" data-kreo-theme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planning Poker</title>
+    <script>
+      // The theme attribute has to be on <html> before the first paint, so it is set here and
+      // synchronously rather than from the app. A synchronous inline script cannot import a
+      // module, so the storage key and the fallback to the system preference are duplicated from
+      // src/lib/theme.ts on purpose — change both together.
+      (() => {
+        let stored = null;
+        try {
+          stored = localStorage.getItem('planning-poker:theme');
+        } catch {
+          stored = null;
+        }
+        const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const theme = stored === 'light' || stored === 'dark' ? stored : system;
+        document.documentElement.setAttribute('data-kreo-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

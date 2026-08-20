@@ -1,0 +1,19 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+}
+
+.app-header__brand {
+  color: var(--kreo-text-primary);
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    color: var(--kreo-text-muted);
+  }
+}

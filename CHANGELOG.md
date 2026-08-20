@@ -7,6 +7,63 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-20
+
+### Added
+
+- **A room now holds the people who are in it.** Every tab says "still here" while it is visible,
+  and stops the moment it is not; three missed beats and the room stops counting on that person.
+  They are dimmed in the list and marked _away_ rather than _waiting_, because somebody who closed
+  their laptop is not somebody still thinking — and after a reveal their silence reads as _was
+  away_ instead of as a refusal to estimate. Three beats rather than one so a hiccup in the network
+  does not read as leaving, and coming back counts immediately, because being wrongly marked away
+  is worse than being counted a minute too long.
+- **"Voted N of M" while a round is open**, counted against the people the room is still expecting.
+  A tally that could never reach its own total was the old way of telling an admin to keep waiting
+  for four people who had gone home.
+- **Leaving a room, and being shown out of one.** Neither was possible before, and not by
+  decision: a delete carries no document to check, so the rule that guarded participant writes
+  denied it without anybody noticing. Your vote in the open round leaves with you, in the same
+  batch, so the revealed cards can never name somebody the room no longer has — which is also why
+  the admin is offered "Remove" only while the round is open, since a revealed result must not be
+  rewritten. An admin who still has somebody to hand the room to has to hand it over first: the
+  rules only accept a new admin who is already a participant, so an admin who left first would
+  strand the room exactly as an abandoned one is stranded.
+- **Changing your name from inside the room**, instead of being stuck with whatever was typed on
+  the way in.
+- **A light theme, and a switch for it.** The interface was pinned to the dark palette by an
+  attribute written into `index.html`, though the component library has carried a light one all
+  along. The switch sits in a new application header beside the product name, on every screen —
+  including the ones that come before a room loads. A first visit follows the operating system's
+  preference; after that the remembered choice is what decides, and it is the only thing that
+  overrides the system. The attribute is set by a small synchronous script before the first paint
+  rather than from the app, because doing it in React would show one frame of the wrong theme to
+  everyone who picked dark.
+
+### Changed
+
+- **The room shows what it is doing.** Pressing "Make admin" on one person used to put a spinner
+  in every other row, because the flag said only that a handover was happening, not whose; now it
+  names the row. Your own row is marked _you_, the card you hold lifts under the pointer, a
+  participant fading to _away_ fades rather than blinks, and the revealed cards arrive with a
+  motion that marks a reveal as an event rather than a repaint. Every one of those is dropped
+  entirely under `prefers-reduced-motion`. Past rounds no longer claim "no votes" for a second
+  before the average lands, a long name in the sidebar truncates instead of wrapping, and the two
+  buttons on the home page hold each other while either is in flight.
+- **You always count as present in your own room.** Presence was read from your own row like
+  everybody else's, so a beat that had not been sent yet could leave the tally reading "Voted 0 of
+  0" on a screen with somebody sitting in front of it.
+- **A closed room takes everyone in it home.** It used to replace the screen with a notice and
+  leave people standing in a room that accepted nothing; now the deadline is waited out exactly
+  rather than polled every five seconds, and when it passes — or when the admin closes the room —
+  everyone is returned to the home page and told why. Going Back does not lead into it again.
+  The trade is deliberate: the last round's results can no longer be read after closing, which is
+  what the round history beside the room is for.
+- **The room's "← Home" link is gone.** The product name in the new header leads home from every
+  screen, and two links to the same place in two stacked headers is noise. The home page likewise
+  drops its own heading — the header already carries the name — and keeps a hidden one so the
+  page still has a level-one heading to announce.
+
 ## [0.3.1] — 2026-08-19
 
 ### Fixed

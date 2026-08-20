@@ -29,7 +29,10 @@ export const homeApi = emptyApi.injectEndpoints({
           {
             url: `/sessions/${code}/participants/${userId}`,
             method: 'PUT',
-            data: { name, joinedAt: serverTimestamp() },
+            // Joining is itself a sign of presence, and writing the first beat here is what lets
+            // a missing `lastSeenAt` mean "row from before presence existed" rather than
+            // "joined and never seen" — the second would be a ghost the room counts on forever.
+            data: { name, joinedAt: serverTimestamp(), lastSeenAt: Date.now() },
           },
         ],
       }),
@@ -38,7 +41,7 @@ export const homeApi = emptyApi.injectEndpoints({
       query: ({ sessionId, userId, name }) => ({
         url: `/sessions/${sessionId}/participants/${userId}`,
         method: 'PUT',
-        data: { name, joinedAt: serverTimestamp() },
+        data: { name, joinedAt: serverTimestamp(), lastSeenAt: Date.now() },
       }),
     }),
   }),

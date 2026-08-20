@@ -1,6 +1,6 @@
 import './RoundHistoryItem.scss';
 import type { ReactElement } from 'react';
-import { Badge } from '@kreobuddha/ui';
+import { Badge, Skeleton } from '@kreobuddha/ui';
 import type { IRound } from '@/types';
 import { useFetchRoundVotesQuery } from '@/main/sections/Room/endpoints/roomApi';
 
@@ -10,7 +10,10 @@ interface RoundHistoryItemProps {
 }
 
 const RoundHistoryItem = ({ sessionId, round }: RoundHistoryItemProps): ReactElement => {
-  const { data: votes = [] } = useFetchRoundVotesQuery({ sessionId, roundId: round.id });
+  const { data: votes = [], isLoading } = useFetchRoundVotesQuery({
+    sessionId,
+    roundId: round.id,
+  });
 
   const scores = votes.map((v) => v.value).filter((value) => typeof value === 'number');
   const average =
@@ -19,7 +22,12 @@ const RoundHistoryItem = ({ sessionId, round }: RoundHistoryItemProps): ReactEle
   return (
     <li className="round-history-item">
       <span className="round-history-item__question">{round.question}</span>
-      {average === null ? (
+      {/* An empty list and a list that has not arrived look identical from here, and saying "no
+          votes" of a round that was voted on — then correcting it a moment later — is worse than
+          saying nothing yet. */}
+      {isLoading ? (
+        <Skeleton className="round-history-item__pending" />
+      ) : average === null ? (
         <Badge tone="neutral">no votes</Badge>
       ) : (
         <Badge tone="accent">{average.toFixed(1)}</Badge>

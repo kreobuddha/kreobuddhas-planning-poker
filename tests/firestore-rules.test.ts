@@ -350,7 +350,7 @@ describe('participants', () => {
     );
   });
 
-  it('rejects an empty name and any field beyond name and joinedAt', async () => {
+  it('rejects an empty name and any field the model does not have', async () => {
     const db = asUser(STRANGER);
     const path = `${sessionPath}/participants/${STRANGER}`;
     await assertFails(setDoc(doc(db, path), { name: '', joinedAt: Date.now() }));
@@ -359,10 +359,61 @@ describe('participants', () => {
     );
   });
 
-  // There is no "leave the room" in this app, and this is why: a delete carries no
-  // `request.resource`, so the field checks on `write` cannot pass and the rule denies it.
-  it('cannot be removed, not even by the participant themselves', async () => {
-    await assertFails(deleteDoc(doc(asUser(MEMBER), `${sessionPath}/participants/${MEMBER}`)));
+  // Presence is a beat on your own row and nothing more. What it must never become is a way to
+  // write on somebody else's row, or to smuggle a field past the model — the beat travels on
+  // the same `write` rule the name does.
+  it('takes a presence beat on your own row, as a number, and nowhere else', async () => {
+    const member = asUser(MEMBER);
+    await assertSucceeds(
+      updateDoc(doc(member, `${sessionPath}/participants/${MEMBER}`), { lastSeenAt: Date.now() })
+    );
+    await assertFails(
+      updateDoc(doc(member, `${sessionPath}/participants/${ADMIN}`), { lastSeenAt: Date.now() })
+    );
+    await assertFails(
+      updateDoc(doc(member, `${sessionPath}/participants/${MEMBER}`), { lastSeenAt: 'now' })
+    );
+  });
+
+  // The beat is a write, so it stops at the deadline like every other write. A tab left open on
+  // a closed room cannot keep reporting itself as present in it.
+  it('refuses a presence beat once the room has closed', async () => {
+    await assertFails(
+      updateDoc(doc(asUser(MEMBER), `${expiredSessionPath}/participants/${MEMBER}`), {
+        lastSeenAt: Date.now(),
+      })
+    );
+  });
+
+  // Leaving needs a rule of its own: a delete carries no `request.resource`, so the field checks
+  // on `write` are evaluated against nothing and deny it. That, and not a decision, is why
+  // leaving used to be impossible.
+  // Rows of their own rather than the shared fixture's: a test that deletes MEMBER would leave
+  // every later case running against a session he is no longer in, and the failure would show up
+  // somewhere else entirely.
+  it('lets you leave, and lets the admin show somebody out', async () => {
+    const leaver = asUser(OUTSIDER);
+    const row = { name: 'Passing through', joinedAt: Date.now() };
+    await assertSucceeds(setDoc(doc(leaver, `${sessionPath}/participants/${OUTSIDER}`), row));
+    await assertSucceeds(deleteDoc(doc(leaver, `${sessionPath}/participants/${OUTSIDER}`)));
+
+    await assertSucceeds(
+      setDoc(doc(asUser(STRANGER), `${sessionPath}/participants/${STRANGER}`), row)
+    );
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN), `${sessionPath}/participants/${STRANGER}`)));
+  });
+
+  it('refuses to remove somebody on behalf of a participant who is not the admin', async () => {
+    await assertFails(deleteDoc(doc(asUser(OUTSIDER), `${sessionPath}/participants/${MEMBER}`)));
+    await assertSucceeds(getDoc(doc(asUser(MEMBER), `${sessionPath}/participants/${MEMBER}`)));
+  });
+
+  // A closed room is a record. Emptying its participant list afterwards would leave votes
+  // attributed to nobody.
+  it('refuses to remove anybody once the room has closed', async () => {
+    await assertFails(
+      deleteDoc(doc(asUser(MEMBER), `${expiredSessionPath}/participants/${MEMBER}`))
+    );
   });
 });
 
@@ -500,6 +551,16 @@ describe('votes', () => {
         comment: 'gut feeling',
       })
     );
+  });
+
+  // The admin's reach into other people's votes exists for one job — a participant being removed
+  // takes their vote with them — and stops where every other write does: at the reveal.
+  it('let the admin clear somebody else vote while the round is open, and never after', async () => {
+    const member = asUser(MEMBER);
+    await assertSucceeds(setDoc(doc(member, votePath(OPEN_ROUND, MEMBER)), { value: 3 }));
+    await assertSucceeds(deleteDoc(doc(asUser(ADMIN), votePath(OPEN_ROUND, MEMBER))));
+    // The revealed round still holds the vote written in `before`, and nothing may touch it.
+    await assertFails(deleteDoc(doc(asUser(ADMIN), votePath(REVEALED_ROUND, MEMBER))));
   });
 
   it('cannot be cleared on someone else behalf', async () => {

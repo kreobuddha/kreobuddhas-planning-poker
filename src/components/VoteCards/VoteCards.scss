@@ -8,6 +8,11 @@
 .vote-cards__card {
   font: inherit;
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
   background: var(--kreo-surface-page);
   border: 1px solid var(--kreo-border-default);
   color: var(--kreo-text-primary);
@@ -37,5 +42,23 @@
   &:focus-visible {
     outline: var(--kreo-border-w-focus) solid var(--kreo-border-focus);
     outline-offset: 1px;
+  }
+
+  // Lifted rather than recoloured: the selected card already owns the accent, so a hover that
+  // borrowed it would say the same thing twice and read as a second selection.
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+}
+
+// Motion here is decoration on a control that works exactly as well without it, so it is dropped
+// wholesale rather than shortened.
+@media (prefers-reduced-motion: reduce) {
+  .vote-cards__card {
+    transition: none;
+  }
+
+  .vote-cards__card:hover:not(:disabled) {
+    transform: none;
   }
 }
