@@ -7,6 +7,8 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-21
+
 ### Added
 
 - **The table says how far apart the room is, counted in cards rather than in numbers.** A spread
