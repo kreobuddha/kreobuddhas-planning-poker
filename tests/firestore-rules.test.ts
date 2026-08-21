@@ -81,14 +81,14 @@ before(async () => {
     await setDoc(doc(db, sessionPath), {
       code: CODE,
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     });
     await setDoc(doc(db, expiredSessionPath), {
       code: EXPIRED_CODE,
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(-1),
     });
@@ -104,7 +104,7 @@ before(async () => {
     await setDoc(doc(db, handoverSessionPath), {
       code: HANDOVER_CODE,
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     });
@@ -160,7 +160,7 @@ describe('sessions', () => {
     const valid = {
       code: 'NEWONE',
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     };
@@ -185,7 +185,7 @@ describe('sessions', () => {
     batch.set(doc(db, `sessions/${code}`), {
       code,
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: serverTimestamp(),
       expiresAt: hoursFromNow(3),
     });
@@ -205,7 +205,7 @@ describe('sessions', () => {
       code: 'BATCH2',
       adminId: ADMIN,
       createdAt: Timestamp.now(),
-      deck: 'modified',
+      deck: 'fibonacci',
       expiresAt: hoursFromNow(3),
     });
     stolen.set(doc(outsiderDb, `sessions/BATCH2/participants/${OUTSIDER}`), {
@@ -221,15 +221,21 @@ describe('sessions', () => {
     await assertFails(updateDoc(doc(asUser(ADMIN), sessionPath), { adminId: OUTSIDER }));
     await assertFails(updateDoc(doc(asUser(MEMBER), sessionPath), { deck: 'fibonacci' }));
 
+    // 'modified' was a deck key until 0.6.0 and is one no longer. A retired key has to be refused
+    // rather than merely absent from the picker: the rules validate votes against the deck the
+    // session names, so a room pointed at a key this build cannot draw would accept cards nobody
+    // could have played.
+    await assertFails(updateDoc(doc(asUser(ADMIN), sessionPath), { deck: 'modified' }));
+
     // The vote rules read this back, so leave the deck as the fixture set it.
-    await assertSucceeds(updateDoc(doc(asUser(ADMIN), sessionPath), { deck: 'modified' }));
+    await assertSucceeds(updateDoc(doc(asUser(ADMIN), sessionPath), { deck: 'fibonacci' }));
   });
 
   it('rejects a create carrying a field the model does not have', async () => {
     const db = asUser(ADMIN);
     const base = {
       adminId: ADMIN,
-      deck: 'modified',
+      deck: 'fibonacci',
       createdAt: Timestamp.now(),
       expiresAt: hoursFromNow(3),
     };
@@ -246,7 +252,7 @@ describe('sessions', () => {
   // of any length into a document every visitor to the room reads.
   it('rejects a createdAt that is not a timestamp', async () => {
     const db = asUser(ADMIN);
-    const base = { adminId: ADMIN, deck: 'modified', expiresAt: hoursFromNow(3) };
+    const base = { adminId: ADMIN, deck: 'fibonacci', expiresAt: hoursFromNow(3) };
     await assertFails(
       setDoc(doc(db, 'sessions/BADAT1'), { ...base, code: 'BADAT1', createdAt: Date.now() })
     );
@@ -280,7 +286,7 @@ describe('sessions', () => {
 describe('session lifetime', () => {
   it('requires a deadline, and one no further ahead than the ceiling', async () => {
     const db = asUser(ADMIN);
-    const base = { adminId: ADMIN, deck: 'modified', createdAt: Timestamp.now() };
+    const base = { adminId: ADMIN, deck: 'fibonacci', createdAt: Timestamp.now() };
     await assertFails(setDoc(doc(db, 'sessions/NODATE'), { ...base, code: 'NODATE' }));
     await assertFails(
       setDoc(doc(db, 'sessions/TOOFAR'), {
@@ -555,6 +561,19 @@ describe('votes', () => {
     await assertFails(
       setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 999, createdAt: Timestamp.now() })
     );
+    // The two ends of the scale the `fibonacci` key names since 0.6.0. They are asserted here
+    // because they are the only place the rename can be caught: the browser cannot check it
+    // against a project whose deployed rules still hold the scale the key used to mean.
+    await assertSucceeds(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 0.5, createdAt: Timestamp.now() })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 20, createdAt: Timestamp.now() })
+    );
+    // 21 was the top card of that key's previous scale and is not a card any more.
+    await assertFails(
+      setDoc(doc(db, votePath(OPEN_ROUND, MEMBER)), { value: 21, createdAt: Timestamp.now() })
+    );
     await assertFails(
       setDoc(doc(db, votePath(OPEN_ROUND, OUTSIDER)), { value: 5, createdAt: Timestamp.now() })
     );
@@ -668,7 +687,7 @@ describe('unauthenticated access', () => {
       setDoc(doc(db, 'sessions/NOAUTH'), {
         code: 'NOAUTH',
         adminId: STRANGER,
-        deck: 'modified',
+        deck: 'fibonacci',
         createdAt: Timestamp.now(),
       })
     );
