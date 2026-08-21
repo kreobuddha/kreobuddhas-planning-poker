@@ -28,6 +28,18 @@ consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the 
 
 ### Changed
 
+- **The history of the meeting is behind an edge instead of under the table.** Every question the
+  room has already answered used to sit in the page below the current one, which put the past
+  between the reader and the deck they were about to play. It is now a panel at the right edge,
+  closed until asked for, with the number of questions behind it written on the control that opens
+  it.
+
+  The panel mounts nothing while it is closed, and that is the point rather than an optimisation:
+  each row in the history reads its own round's votes, so a room with fifty questions behind it
+  would have charged fifty reads to everyone who walked in — including everyone who never looked.
+  Paging survives for the same reason on the other side of the click: opening the panel draws ten
+  and asks before drawing more.
+
 - **The room is a table now, and the people in it are sitting around it.** Everything used to be
   one column of a card — the question, the cards, the results — with the participants a list of
   names in a sidebar beside it. Whether somebody had voted was a word next to their name, and after
@@ -62,6 +74,13 @@ consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the 
   they open a dialog is not a warning. And closing a room no longer depends on that warning
   existing: a session created before rooms had lifetimes had no close control at all, and now has
   one.
+
+### Fixed
+
+- **One estimate is no longer reported as a consensus.** A single vote is zero cards away from
+  itself, and zero is the same distance a room in full agreement produces, so a table where nobody
+  had agreed with anybody read as `Full consensus`. It now says `Only one voted`, in a neutral tone
+  rather than a green one: this is not a weak agreement, it is the absence of one.
 
 ## [0.5.0] — 2026-08-20
 

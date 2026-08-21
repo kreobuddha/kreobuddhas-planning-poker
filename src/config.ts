@@ -95,10 +95,11 @@ export const PRESENCE_HEARTBEAT_MS = 20 * 1000;
 export const PRESENCE_TIMEOUT_MS = 3 * PRESENCE_HEARTBEAT_MS;
 
 // How many past questions the history draws before it asks to be asked for more. The number is
-// not cosmetic: `Accordion` is a `<details>`, so its content is mounted whether or not it is
-// open, and every row mounted reads that round's whole votes collection. A room with fifty
-// questions behind it therefore costs fifty collection reads per person per visit, none of which
-// anybody asked to see. Ten is what fits on a screen; the rest arrive when they are wanted.
+// not cosmetic: every row mounted reads that round's whole votes collection, so a room with fifty
+// questions behind it would cost fifty collection reads the moment the drawer opened. The drawer
+// mounts nothing while it is closed, which is what keeps that cost off everyone who never opens
+// it; paging is what keeps it from landing all at once on everyone who does. Ten is what fits on
+// a screen; the rest arrive when they are wanted.
 export const ROUND_HISTORY_PAGE_SIZE = 10;
 
 // A join code is exactly this long — `generateSessionCode` draws it and the field on Home accepts
