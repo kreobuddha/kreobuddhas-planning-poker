@@ -13,9 +13,8 @@ not when an API does, because there is no public API here.
 
 - **The table says how far apart the room is, counted in cards rather than in numbers.** A spread
   of 13–20 and a spread of 1–8 are both seven person-days wide, and they mean opposite things: on
-  the Modified Fibonacci deck the first pair are neighbours and the second are five cards apart.
-  The decks are not linear, so the distance between two numbers is not the distance between two
-  opinions.
+  the Fibonacci deck the first pair are neighbours and the second are four cards apart. The decks
+  are not linear, so the distance between two numbers is not the distance between two opinions.
 
   After a reveal the table now carries a reading beside the average and the spread — `Full
 consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the gap it is based on
@@ -96,9 +95,9 @@ consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the 
   Two things moved rather than changed. The admin's controls — `Reveal cards`, `Reopen round`,
   `Ask next question` — are one row at the table's edge instead of a button beside each thing they
   act on, and the next question is asked in a dialog rather than in a form standing open beside the
-  cards the room is still reading. Handing the room over and removing somebody are behind a
-  `Manage people` control in the header: who is in the room is on the table, and what to do about
-  them is the admin's business and in exactly one place.
+  cards the room is still reading. Handing the room over and removing somebody are behind the room
+  menu in the header: who is in the room is on the table, and what to do about them is the admin's
+  business and in exactly one place.
 
 - **The room's controls moved out of the way of the room.** Choosing a deck and closing the room
   were columns of the page, sitting above the question whether or not anybody was going to touch
