@@ -1,7 +1,7 @@
 import './UserMenu.scss';
 import { useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
-import { Button, Dialog, TextField, Toggletip } from '@kreobuddha/ui';
+import { Button, Dialog, IconButton, TextField, Toggletip } from '@kreobuddha/ui';
 import { NAME_MAX_LENGTH } from '@/config';
 
 interface UserMenuProps {
@@ -17,6 +17,17 @@ interface UserMenuProps {
   onLeave?: () => void;
   onRename: (name: string) => void;
 }
+
+const PersonIcon = (): ReactElement => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+    />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
 
 // Both dialogs are rendered outside the toggletip's content rather than inside it. The content is
 // mounted only while the bubble is open, and the bubble closes on the first pointer down outside
@@ -40,6 +51,10 @@ const UserMenu = ({ name, renaming, leaving, onLeave, onRename }: UserMenuProps)
         placement="bottom"
         content={
           <div className="user-menu__items">
+            {/* The name lives in the bubble rather than on the trigger. On the trigger it was a
+                second button competing with the room's own controls for the top of the screen;
+                here it is what the menu is about, so it opens with it. */}
+            <p className="user-menu__who">{name}</p>
             <Button size="sm" variant="ghost" onClick={() => setDraft(name)}>
               Change name
             </Button>
@@ -57,9 +72,10 @@ const UserMenu = ({ name, renaming, leaving, onLeave, onRename }: UserMenuProps)
           </div>
         }
       >
-        <Button size="sm" variant="outlined">
-          {name}
-        </Button>
+        {/* No Tooltip around this one, unlike the room's other header icons: IconButton falls back
+            to `label` as the native title, and a Toggletip and a Tooltip fighting over the same
+            trigger is one owner too many for it. */}
+        <IconButton label={`You, ${name}`} icon={<PersonIcon />} variant="ghost" size="sm" />
       </Toggletip>
 
       <Dialog

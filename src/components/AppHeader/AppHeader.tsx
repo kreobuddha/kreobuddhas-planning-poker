@@ -1,22 +1,28 @@
 import './AppHeader.scss';
-import type { ReactElement } from 'react';
-import { Link, useMatch } from 'react-router-dom';
-import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
+import type { ReactElement, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import ThemeToggle from '@/components/ThemeToggle/ThemeToggle';
 
-const AppHeader = (): ReactElement => {
-  // The copy button belongs to the room, but it needs nothing from it — the link it copies is the
-  // address bar. Matching the route is therefore enough to place it here, next to the theme
-  // toggle, without threading room state up through the header.
-  const inRoom = useMatch('/room/:code') !== null;
+interface AppHeaderProps {
+  /**
+   * Whatever the screen below puts in the bar — in a room, that is every control the room has.
+   * A slot rather than props: the header would otherwise need the deck, the participant list and
+   * a handler for each, which is a pipe, not a header.
+   */
+  children?: ReactNode;
+}
 
+// Rendered by each screen rather than once above the router. The bar is the only chrome the app
+// has, so the room's controls belong in it — and route-sniffing to decide what to draw would mean
+// this component knowing about every screen instead of each screen speaking for itself.
+const AppHeader = ({ children }: AppHeaderProps): ReactElement => {
   return (
     <header className="app-header">
       <Link to="/" className="app-header__brand">
         Planning Poker
       </Link>
       <div className="app-header__actions">
-        {inRoom && <CopyLinkButton />}
+        {children}
         <ThemeToggle />
       </div>
     </header>

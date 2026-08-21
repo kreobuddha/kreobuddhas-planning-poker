@@ -5,7 +5,10 @@
   gap: 1rem;
   max-width: var(--app-shell-max);
   margin: 0 auto;
-  padding: 1rem 1.5rem;
+  padding: 0 1.5rem;
+  // Declared rather than measured. The room sizes itself against what is left of the viewport, so
+  // the bar's height has to be a number both of them can read.
+  min-height: var(--app-header-h);
 }
 
 .app-header__brand {

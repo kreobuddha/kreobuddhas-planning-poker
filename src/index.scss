@@ -9,6 +9,21 @@
   // Home does not use it and should not — it is a form, and a form line 1440px long is unreadable.
   --app-shell-max: 1440px;
 
+  // The height of the bar at the top. The room reads it to work out how much screen is left for
+  // the table, so it is set here and applied to the header rather than measured off it.
+  --app-header-h: 4rem;
+
+  // Card sizes, tied to how much screen there is rather than fixed. A table has to fit on the
+  // screen it is played on — scrolling to see who has voted defeats the point of a table — and a
+  // laptop and a 2K monitor disagree by a factor of two about how much room that is. The ceilings
+  // are the sizes a big screen gets; the floors are where a card stops being worth looking at.
+  //
+  // Height leads and width follows it, so a card keeps its shape at every size.
+  --seat-card-h: clamp(96px, 13vh, 150px);
+  --seat-card-w: calc(var(--seat-card-h) * 0.72);
+  --hand-card-h: clamp(72px, 9vh, 100px);
+  --hand-card-w: calc(var(--hand-card-h) * 0.72);
+
   font-family: var(--kreo-font-sans);
   color-scheme: light;
   color: var(--kreo-text-primary);

@@ -3,10 +3,10 @@ import type { ReactElement } from 'react';
 import { Alert, Button, Spinner } from '@kreobuddha/ui';
 import { CARD_DECKS } from '@/config';
 import { errorMessage } from '@/store/queryError';
+import AppHeader from '@/components/AppHeader/AppHeader';
+import CopyLinkButton from '@/components/CopyLinkButton/CopyLinkButton';
 import VoteCards from '@/components/VoteCards/VoteCards';
-import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
-import RoomSettings from '@/main/sections/Room/components/RoomSettings/RoomSettings';
-import RoomPeople from '@/main/sections/Room/components/RoomPeople/RoomPeople';
+import RoomMenu from '@/main/sections/Room/components/RoomMenu/RoomMenu';
 import UserMenu from '@/main/sections/Room/components/UserMenu/UserMenu';
 import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
@@ -43,65 +43,143 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   const actions = useRoomActions({ userId, session, round, me, myVote, votingOpen });
 
-  // Only a session that can't be loaded replaces the screen. A failed action is a toast, because
-  // the session behind it is still live and usable.
-  if (sessionError) {
-    return (
-      <div className="room__error">
-        <Alert tone="danger" title="This room could not be opened">
-          {errorMessage(sessionError, 'Session not found.')}
-        </Alert>
-      </div>
-    );
-  }
-  if (sessionLoading || !session) {
-    return (
-      <div className="room__loading">
-        <Spinner label="Loading session" />
-      </div>
-    );
-  }
+  // The bar is drawn once, whatever state the room is in — an error or a join form under a
+  // headerless page would look like a different application. What changes is what it carries.
+  const body = ((): ReactElement => {
+    // Only a session that can't be loaded replaces the screen. A failed action is a toast, because
+    // the session behind it is still live and usable.
+    if (sessionError) {
+      return (
+        <div className="room__error">
+          <Alert tone="danger" title="This room could not be opened">
+            {errorMessage(sessionError, 'Session not found.')}
+          </Alert>
+        </div>
+      );
+    }
+    if (sessionLoading || !session) {
+      return (
+        <div className="room__loading">
+          <Spinner label="Loading session" />
+        </div>
+      );
+    }
 
-  // Three distinct states, and they must stay distinct: while the list is still arriving the room
-  // renders with placeholder seats, an unreadable list says so, and only a list that loaded and
-  // does not hold the reader means "you are not in this room yet". Offering the join form on an
-  // unreadable list would invite people to join a room they are already in.
-  if (participantsUnreadable) {
+    // Three distinct states, and they must stay distinct: while the list is still arriving the
+    // room renders with placeholder seats, an unreadable list says so, and only a list that
+    // loaded and does not hold the reader means "you are not in this room yet". Offering the join
+    // form on an unreadable list would invite people to join a room they are already in.
+    if (participantsUnreadable) {
+      return (
+        <div className="room__error">
+          <Alert tone="warning" title="Connection lost">
+            Reconnecting… the room comes back on its own once the connection returns.
+          </Alert>
+        </div>
+      );
+    }
+
+    if (!participantsLoading && !me) {
+      return (
+        <JoinForm
+          code={session.code}
+          name={actions.nameDraft}
+          busy={actions.joining}
+          onNameChange={actions.setNameDraft}
+          onSubmit={actions.handleJoin}
+        />
+      );
+    }
+
     return (
-      <div className="room__error">
-        <Alert tone="warning" title="Connection lost">
-          Reconnecting… the room comes back on its own once the connection returns.
-        </Alert>
+      <div className="room">
+        {isAdmin && session.expiresAt !== undefined && (
+          <SessionDeadline
+            expiresAt={session.expiresAt}
+            extending={actions.extending}
+            onExtend={actions.handleExtend}
+          />
+        )}
+
+        <PokerTable
+          participants={participants}
+          votes={votes}
+          presentIds={presentIds}
+          round={round}
+          adminId={session.adminId}
+          youId={userId}
+          deckValues={CARD_DECKS[deck].values}
+          loading={participantsLoading}
+        >
+          {!round && !isAdmin && <p className="room__waiting">Waiting for the admin…</p>}
+          {!round && isAdmin && (
+            <AskQuestionForm
+              question={actions.question}
+              busy={actions.asking}
+              onQuestionChange={actions.setQuestion}
+              onSubmit={actions.handleAskQuestion}
+            />
+          )}
+
+          {/* One row of admin controls at the table's edge, rather than a control wherever the
+              thing it acts on happens to be drawn. */}
+          {round && isAdmin && (
+            <div className="room__table-actions">
+              {round.revealed ? (
+                <>
+                  <Button
+                    variant="outlined"
+                    loading={actions.reopening}
+                    onClick={actions.handleReopen}
+                  >
+                    Reopen round
+                  </Button>
+                  <AskQuestionDialog
+                    question={actions.question}
+                    busy={actions.asking}
+                    onQuestionChange={actions.setQuestion}
+                    onSubmit={actions.handleAskQuestion}
+                  />
+                </>
+              ) : (
+                <Button loading={actions.revealing} onClick={actions.handleReveal}>
+                  Reveal cards
+                </Button>
+              )}
+            </div>
+          )}
+        </PokerTable>
+
+        {/* The reader's hand: their own deck, below the table and outside it, because it is the
+            one thing on this screen nobody else can touch. */}
+        {round && !round.revealed && (
+          <div className="room__hand">
+            <VoteCards
+              values={CARD_DECKS[deck].values}
+              selected={myVote?.value ?? null}
+              disabled={actions.voting}
+              onSelect={actions.handleVote}
+              label={`Your estimate for: ${round.question}`}
+            />
+          </div>
+        )}
+
+        <RoundHistoryDrawer sessionId={session.id} rounds={rounds.slice(1)} />
       </div>
     );
-  }
-
-  if (!participantsLoading && !me) {
-    return (
-      <JoinForm
-        code={session.code}
-        name={actions.nameDraft}
-        busy={actions.joining}
-        onNameChange={actions.setNameDraft}
-        onSubmit={actions.handleJoin}
-      />
-    );
-  }
+  })();
 
   return (
-    <div className="room">
-      <RoomHeader code={session.code}>
-        {isAdmin && (
-          <RoomSettings
+    <>
+      <AppHeader>
+        <CopyLinkButton />
+        {session && isAdmin && (
+          <RoomMenu
             deck={deck}
             deckLocked={votingOpen || actions.settingDeck}
             closing={actions.closing}
             onDeckChange={actions.handleDeckChange}
             onCloseRoom={actions.handleCloseRoom}
-          />
-        )}
-        {isAdmin && (
-          <RoomPeople
             participants={participants}
             votedIds={votedIds}
             presentIds={presentIds}
@@ -127,81 +205,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
             onRename={actions.handleRename}
           />
         )}
-      </RoomHeader>
-
-      {isAdmin && session.expiresAt !== undefined && (
-        <SessionDeadline
-          expiresAt={session.expiresAt}
-          extending={actions.extending}
-          onExtend={actions.handleExtend}
-        />
-      )}
-
-      <PokerTable
-        participants={participants}
-        votes={votes}
-        presentIds={presentIds}
-        round={round}
-        adminId={session.adminId}
-        youId={userId}
-        deckValues={CARD_DECKS[deck].values}
-        loading={participantsLoading}
-      >
-        {!round && !isAdmin && <p className="room__waiting">Waiting for the admin…</p>}
-        {!round && isAdmin && (
-          <AskQuestionForm
-            question={actions.question}
-            busy={actions.asking}
-            onQuestionChange={actions.setQuestion}
-            onSubmit={actions.handleAskQuestion}
-          />
-        )}
-
-        {/* One row of admin controls at the table's edge, rather than a control wherever the thing
-            it acts on happens to be drawn. */}
-        {round && isAdmin && (
-          <div className="room__table-actions">
-            {round.revealed ? (
-              <>
-                <Button
-                  variant="outlined"
-                  loading={actions.reopening}
-                  onClick={actions.handleReopen}
-                >
-                  Reopen round
-                </Button>
-                <AskQuestionDialog
-                  question={actions.question}
-                  busy={actions.asking}
-                  onQuestionChange={actions.setQuestion}
-                  onSubmit={actions.handleAskQuestion}
-                />
-              </>
-            ) : (
-              <Button loading={actions.revealing} onClick={actions.handleReveal}>
-                Reveal cards
-              </Button>
-            )}
-          </div>
-        )}
-      </PokerTable>
-
-      {/* The reader's hand: their own deck, below the table and outside it, because it is the one
-          thing on this screen nobody else can touch. */}
-      {round && !round.revealed && (
-        <div className="room__hand">
-          <VoteCards
-            values={CARD_DECKS[deck].values}
-            selected={myVote?.value ?? null}
-            disabled={actions.voting}
-            onSelect={actions.handleVote}
-            label={`Your estimate for: ${round.question}`}
-          />
-        </div>
-      )}
-
-      <RoundHistoryDrawer sessionId={session.id} rounds={rounds.slice(1)} />
-    </div>
+      </AppHeader>
+      {body}
+    </>
   );
 };
 
