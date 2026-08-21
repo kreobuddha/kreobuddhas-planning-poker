@@ -7,6 +7,21 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The room's controls moved out of the way of the room.** Choosing a deck and closing the room
+  were columns of the page, sitting above the question whether or not anybody was going to touch
+  them; renaming yourself and leaving were a sentence of links in the header. The deck and the
+  close control are now behind a settings dialog the admin opens from the header, your own name is
+  a menu holding "Change name" and "Leave room", and copying the room link is an icon in the top
+  bar beside the theme toggle. What is left on the page is the question, the cards and the people.
+
+  Two things changed behaviour rather than position. The warning that a room is about to close
+  stays on the page — it is the room saying it is about to stop, and a warning nobody sees until
+  they open a dialog is not a warning. And closing a room no longer depends on that warning
+  existing: a session created before rooms had lifetimes had no close control at all, and now has
+  one.
+
 ## [0.5.0] — 2026-08-20
 
 ### Added

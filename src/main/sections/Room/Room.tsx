@@ -3,8 +3,9 @@ import type { ReactElement } from 'react';
 import { Alert, Spinner } from '@kreobuddha/ui';
 import { CARD_DECKS } from '@/config';
 import { errorMessage } from '@/store/queryError';
-import DeckPicker from '@/components/DeckPicker/DeckPicker';
 import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
+import RoomSettings from '@/main/sections/Room/components/RoomSettings/RoomSettings';
+import UserMenu from '@/main/sections/Room/components/UserMenu/UserMenu';
 import RoomSidebar from '@/main/sections/Room/components/RoomSidebar/RoomSidebar';
 import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
@@ -86,17 +87,30 @@ const Room = ({ userId }: RoomProps): ReactElement => {
 
   return (
     <div className="room">
-      <RoomHeader
-        code={session.code}
-        youAre={me?.name ?? null}
-        renaming={actions.renaming}
-        leaving={actions.removing}
-        // An admin with somebody left to hand the room to has to hand it over first: the rules
-        // only accept a new admin who is already a participant, so leaving first would strand
-        // the room. The last person in a room may always leave — there is nobody to strand.
-        onLeave={isAdmin && participants.length > 1 ? undefined : actions.handleLeave}
-        onRename={actions.handleRename}
-      />
+      <RoomHeader code={session.code}>
+        {isAdmin && (
+          <RoomSettings
+            deck={deck}
+            deckLocked={votingOpen || actions.settingDeck}
+            closing={actions.closing}
+            onDeckChange={actions.handleDeckChange}
+            onCloseRoom={actions.handleCloseRoom}
+          />
+        )}
+        {me && (
+          <UserMenu
+            name={me.name}
+            renaming={actions.renaming}
+            leaving={actions.removing}
+            // An admin with somebody left to hand the room to has to hand it over first: the
+            // rules only accept a new admin who is already a participant, so leaving first would
+            // strand the room. The last person in a room may always leave — there is nobody to
+            // strand.
+            onLeave={isAdmin && participants.length > 1 ? undefined : actions.handleLeave}
+            onRename={actions.handleRename}
+          />
+        )}
+      </RoomHeader>
 
       <div className="room__body">
         <RoomSidebar
@@ -120,17 +134,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
             <SessionDeadline
               expiresAt={session.expiresAt}
               extending={actions.extending}
-              closing={actions.closing}
               onExtend={actions.handleExtend}
-              onClose={actions.handleCloseRoom}
-            />
-          )}
-
-          {isAdmin && (
-            <DeckPicker
-              value={deck}
-              disabled={votingOpen || actions.settingDeck}
-              onChange={actions.handleDeckChange}
             />
           )}
 
