@@ -9,6 +9,28 @@ not when an API does, because there is no public API here.
 
 ### Changed
 
+- **The room is a table now, and the people in it are sitting around it.** Everything used to be
+  one column of a card — the question, the cards, the results — with the participants a list of
+  names in a sidebar beside it. Whether somebody had voted was a word next to their name, and after
+  a reveal their estimate was a second card in a second place, so the room said the same thing
+  twice in two shapes.
+
+  There is one place now. Every participant has a seat with a card in it: face down once they have
+  played, an empty slot while they have not, dimmed with `away` beneath it when their tab has
+  stopped beating. The reader always sits at the near edge, the rest take the far edge in the order
+  they joined and spill onto the sides once the far edge is full, and their own deck is a hand
+  below the table. The reveal turns the cards over where they already lie — the estimate appears on
+  the seat that played it, and somebody who said nothing still has a seat, marked `did not vote` or
+  `was away` so an absence is never read as agreement. What is left on the table itself is the
+  question, the tally of who has voted, and the average and spread once the cards are up.
+
+  Two things moved rather than changed. The admin's controls — `Reveal cards`, `Reopen round`,
+  `Ask next question` — are one row at the table's edge instead of a button beside each thing they
+  act on, and the next question is asked in a dialog rather than in a form standing open beside the
+  cards the room is still reading. Handing the room over and removing somebody are behind a
+  `Manage people` control in the header: who is in the room is on the table, and what to do about
+  them is the admin's business and in exactly one place.
+
 - **The room's controls moved out of the way of the room.** Choosing a deck and closing the room
   were columns of the page, sitting above the question whether or not anybody was going to touch
   them; renaming yourself and leaving were a sentence of links in the header. The deck and the

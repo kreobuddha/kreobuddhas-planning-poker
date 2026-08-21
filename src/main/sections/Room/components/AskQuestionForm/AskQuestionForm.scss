@@ -1,5 +1,11 @@
+// The caller owns the heading: on the table it is the table's own, and in the dialog it is the
+// panel's title, so a heading here would be the second one either way.
 .ask-question-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
+  // The table's surface centres what it holds, and a field stretched to the full width of a
+  // 1440px room is not a question, it is a horizon.
+  max-width: 26rem;
 }
