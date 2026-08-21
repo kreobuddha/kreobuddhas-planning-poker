@@ -1,4 +1,4 @@
-import { CONFIDENCE_BEYOND, CONFIDENCE_LEVELS } from '@/config';
+import { CONFIDENCE_ALONE, CONFIDENCE_BEYOND, CONFIDENCE_LEVELS } from '@/config';
 import type { ConfidenceLevel } from '@/config';
 
 interface Confidence {
@@ -21,6 +21,9 @@ export const confidenceOf = (
   // position -1 it would report a disagreement nobody had.
   const positions = values.map((value) => deckValues.indexOf(value)).filter((i) => i !== -1);
   if (positions.length === 0) return null;
+  // Read before the gap is measured, because a lone vote measures zero and zero is the same number
+  // a room in full agreement produces. The count is what tells those two apart.
+  if (positions.length === 1) return { steps: 0, level: CONFIDENCE_ALONE };
 
   const steps = Math.max(...positions) - Math.min(...positions);
   const level = CONFIDENCE_LEVELS.find((l) => steps <= l.upToSteps) ?? CONFIDENCE_BEYOND;

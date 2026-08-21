@@ -1,0 +1,49 @@
+// In the page rather than floating over its corner. Floated, it sat exactly where the hand runs
+// across a narrow screen and covered two of the reader's own cards — and the width at which that
+// stops happening depends on how many cards the deck has, which is not something a stylesheet
+// should be made to know. Below the hand it is out of the way at every width.
+.round-history-drawer__handle {
+  display: block;
+  width: fit-content;
+  margin: 2rem auto 0;
+}
+
+.round-history-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: min(22rem, 90vw);
+  height: 100dvh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: var(--kreo-surface-card);
+  border-left: 1px solid var(--kreo-border-default);
+  animation: round-history-drawer-in 160ms ease-out;
+}
+
+.round-history-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+@keyframes round-history-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+// The panel arrives where the reader asked it to, so the travel is decoration on a control that
+// works exactly as well without it.
+@media (prefers-reduced-motion: reduce) {
+  .round-history-drawer {
+    animation: none;
+  }
+}

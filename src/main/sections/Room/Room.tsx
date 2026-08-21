@@ -12,7 +12,7 @@ import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
 import AskQuestionDialog from '@/main/sections/Room/components/AskQuestionDialog/AskQuestionDialog';
 import PokerTable from '@/main/sections/Room/components/PokerTable/PokerTable';
-import RoundHistory from '@/main/sections/Room/components/RoundHistory/RoundHistory';
+import RoundHistoryDrawer from '@/main/sections/Room/components/RoundHistoryDrawer/RoundHistoryDrawer';
 import SessionDeadline from '@/main/sections/Room/components/SessionDeadline/SessionDeadline';
 import { useRoomActions } from '@/main/sections/Room/useRoomActions';
 import { useRoomData } from '@/main/sections/Room/useRoomData';
@@ -200,7 +200,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         </div>
       )}
 
-      <RoundHistory sessionId={session.id} rounds={rounds.slice(1)} />
+      <RoundHistoryDrawer sessionId={session.id} rounds={rounds.slice(1)} />
     </div>
   );
 };
