@@ -1,8 +1,27 @@
 .round-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.round-stats__line {
   margin: 0;
   color: var(--kreo-text-muted);
 
   strong {
     color: var(--kreo-text-primary);
   }
+}
+
+.round-stats__confidence {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.round-stats__steps {
+  font-size: 0.8rem;
+  color: var(--kreo-text-muted);
 }

@@ -15,6 +15,8 @@ interface PokerTableProps {
   adminId: string;
   /** The reader's own uid. Their seat is always the one at the near edge. */
   youId: string;
+  /** The deck the room is playing with — the scale the confidence reading is measured on. */
+  deckValues: readonly number[];
   loading: boolean;
   /** What the round is asking of the reader right now — the ask form, or the admin's controls. */
   children?: ReactNode;
@@ -32,6 +34,7 @@ const PokerTable = ({
   round,
   adminId,
   youId,
+  deckValues,
   loading,
   children,
 }: PokerTableProps): ReactElement => {
@@ -103,7 +106,7 @@ const PokerTable = ({
           </p>
         )}
 
-        {round?.revealed && <RoundStats votes={votes} />}
+        {round?.revealed && <RoundStats votes={votes} deckValues={deckValues} />}
 
         {children}
 

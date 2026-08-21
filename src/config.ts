@@ -1,3 +1,5 @@
+import type { BadgeTone } from '@kreobuddha/ui';
+
 // Sessions store the deck *key*, not its values, so adjusting a scale here doesn't require
 // touching existing session documents.
 export const CARD_DECKS = {
@@ -7,6 +9,34 @@ export const CARD_DECKS = {
 } as const;
 
 export type DeckKey = keyof typeof CARD_DECKS;
+
+// How far apart a round landed, said in cards rather than in numbers. The decks are not linear:
+// under Fibonacci, 13 and 21 are neighbours while 1 and 8 are four cards apart, so a numeric spread
+// of 8 means near-agreement at the top of the deck and a real argument at the bottom. Counting the
+// cards between the highest and the lowest vote asks the question the room actually cares about —
+// how many times somebody would have to change their mind.
+//
+// Thresholds and wording live here beside the decks they are measured against. Nothing in
+// firebase/firestore.rules mirrors them: this is a reading of the votes, not a constraint on them.
+export const CONFIDENCE_LEVELS = [
+  { upToSteps: 0, label: 'Full consensus', tone: 'success' },
+  { upToSteps: 1, label: 'Confident', tone: 'success' },
+  { upToSteps: 2, label: 'Some disagreement', tone: 'warning' },
+] as const satisfies readonly ConfidenceLevel[];
+
+// Anything further apart than the last threshold above.
+export const CONFIDENCE_BEYOND: ConfidenceLevel = {
+  upToSteps: Number.POSITIVE_INFINITY,
+  label: 'Needs discussion',
+  tone: 'danger',
+};
+
+export interface ConfidenceLevel {
+  /** The widest gap, in cards, this level still describes. */
+  upToSteps: number;
+  label: string;
+  tone: BadgeTone;
+}
 
 // Deliberately not a member of any deck's `values`: "?" is not an estimate but a refusal to
 // give one, so it is drawn after the deck and left out of the statistics. Mirrored in
