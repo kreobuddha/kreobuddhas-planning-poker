@@ -3,3 +3,10 @@
 .session-deadline {
   margin-bottom: 1.75rem;
 }
+
+// The sentence and the button were siblings in one run of text, so the button sat against the last
+// word with nothing between them. Making the sentence a paragraph gives the button a line of its
+// own to stand on.
+.session-deadline__text {
+  margin: 0 0 0.75rem;
+}

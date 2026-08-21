@@ -71,11 +71,17 @@ const ParticipantSeat = ({
         )}
       </div>
 
-      <span className="participant-seat__name">
-        <span className="participant-seat__who">{participant.name}</span>
-        {isYou && <Badge>you</Badge>}
-        {isAdmin && <Badge tone="accent">admin</Badge>}
-      </span>
+      <span className="participant-seat__who">{participant.name}</span>
+
+      {/* A line of their own rather than trailing the name. Sharing a line, they wrapped or not
+          depending on how long the name happened to be, so two seats side by side disagreed about
+          where the badges live. */}
+      {(isYou || isAdmin) && (
+        <span className="participant-seat__badges">
+          {isYou && <Badge>you</Badge>}
+          {isAdmin && <Badge tone="accent">admin</Badge>}
+        </span>
+      )}
 
       {note !== null && <span className="participant-seat__note">{note}</span>}
 

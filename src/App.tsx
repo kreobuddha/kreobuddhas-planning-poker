@@ -9,13 +9,25 @@ import Room from '@/main/sections/Room/Room';
 const App = (): ReactElement => {
   const { userId, loading, error } = useCheckAuth();
 
+  // Each screen draws the bar itself, because in a room the bar is where the room's controls live.
+  // These two states are not a screen and have nothing to put in it, so they get a bare one.
   const content = ((): ReactElement => {
     if (error) {
-      return <div className="app-loading">Could not connect: {error}</div>;
+      return (
+        <>
+          <AppHeader />
+          <div className="app-loading">Could not connect: {error}</div>
+        </>
+      );
     }
 
     if (loading || !userId) {
-      return <div className="app-loading">Loading…</div>;
+      return (
+        <>
+          <AppHeader />
+          <div className="app-loading">Loading…</div>
+        </>
+      );
     }
 
     return (
@@ -33,10 +45,7 @@ const App = (): ReactElement => {
     <ToastProvider label="Notifications">
       {/* The router also wraps the loading and error screens: AppHeader links home, and a Link
           outside a router throws. */}
-      <BrowserRouter>
-        <AppHeader />
-        {content}
-      </BrowserRouter>
+      <BrowserRouter>{content}</BrowserRouter>
     </ToastProvider>
   );
 };

@@ -22,10 +22,16 @@ interface PokerTableProps {
   children?: ReactNode;
 }
 
-// How many people sit across the table before the rest take the sides. A number rather than a
-// measurement: the seats are grid areas, so the split has to be decided before anything is laid
-// out and cannot be read back off the result.
-const SEATS_ACROSS = 6;
+// How many people sit along one edge of the table before the next edge is used. A number rather
+// than a measurement: the seats are grid areas, so the split has to be decided before anything is
+// laid out and cannot be read back off the result.
+//
+// The two long edges are free and the sides are not. A seat added across the top or the bottom
+// costs width, of which a room has plenty; a seat added down a side costs height, and stacking
+// three of them makes the middle row taller than the table between them — which is what pushed a
+// full room off the bottom of a laptop screen. So both long edges fill before either side is
+// touched, and sixteen people sit down without the room needing to scroll.
+const SEATS_ACROSS = 8;
 
 const PokerTable = ({
   participants,
@@ -47,7 +53,10 @@ const PokerTable = ({
   const others = [...participants]
     .filter((p) => p.id !== youId)
     .sort((a, b) => a.joinedAt - b.joinedAt);
-  const overflow = others.slice(SEATS_ACROSS);
+  const across = others.slice(0, SEATS_ACROSS);
+  // The near edge already holds the reader, so it seats one fewer than the far edge.
+  const beside = others.slice(SEATS_ACROSS, SEATS_ACROSS * 2 - 1);
+  const overflow = others.slice(SEATS_ACROSS * 2 - 1);
 
   const seatsOf = (people: IParticipant[]): ReactElement[] =>
     people.map((p) => (
@@ -62,7 +71,12 @@ const PokerTable = ({
       />
     ));
 
+  // The reader keeps the middle of the near edge rather than an end of it: their own card is the
+  // one they reach for, and a hand below the table that does not line up with the seat playing it
+  // reads as somebody else's.
   const you = participants.filter((p) => p.id === youId);
+  const half = Math.ceil(beside.length / 2);
+  const nearEdge = [...beside.slice(0, half), ...you, ...beside.slice(half)];
   const votedPresentCount = votes.filter((v) => presentIds.has(v.id)).length;
 
   return (
@@ -79,9 +93,7 @@ const PokerTable = ({
         </ul>
       ) : (
         <>
-          <ul className="poker-table__seats poker-table__seats--top">
-            {seatsOf(others.slice(0, SEATS_ACROSS))}
-          </ul>
+          <ul className="poker-table__seats poker-table__seats--top">{seatsOf(across)}</ul>
           {/* The overflow alternates right, left, right… so a table that grows keeps its balance
               instead of filling one side to the floor before starting the other. */}
           <ul className="poker-table__seats poker-table__seats--left">
@@ -90,7 +102,7 @@ const PokerTable = ({
           <ul className="poker-table__seats poker-table__seats--right">
             {seatsOf(overflow.filter((_, i) => i % 2 === 0))}
           </ul>
-          <ul className="poker-table__seats poker-table__seats--bottom">{seatsOf(you)}</ul>
+          <ul className="poker-table__seats poker-table__seats--bottom">{seatsOf(nearEdge)}</ul>
         </>
       )}
 

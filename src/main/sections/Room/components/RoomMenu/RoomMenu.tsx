@@ -1,17 +1,30 @@
-import './RoomSettings.scss';
+import './RoomMenu.scss';
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { Button, Dialog, IconButton, Tooltip } from '@kreobuddha/ui';
 import DeckPicker from '@/components/DeckPicker/DeckPicker';
+import ParticipantList from '@/components/ParticipantList/ParticipantList';
 import type { DeckKey } from '@/config';
+import type { IParticipant } from '@/types';
 
-interface RoomSettingsProps {
+interface RoomMenuProps {
   deck: DeckKey;
   /** True while a round is open — the deck may not change under a vote in progress. */
   deckLocked: boolean;
   closing: boolean;
   onDeckChange: (deck: DeckKey) => void;
   onCloseRoom: () => void;
+  participants: IParticipant[];
+  votedIds: Set<string>;
+  presentIds: Set<string>;
+  revealed: boolean;
+  adminId: string;
+  youId: string;
+  onMakeAdmin: (userId: string) => void;
+  handingOverId: string | null;
+  /** Absent once the cards are down: a vote cannot be cleared then, so nobody can be removed. */
+  onRemove?: (userId: string) => void;
+  removingId: string | null;
 }
 
 const GearIcon = (): ReactElement => (
@@ -25,16 +38,28 @@ const GearIcon = (): ReactElement => (
   </svg>
 );
 
-// A dialog rather than a toggletip: the deck is a radio group and closing the room is
-// irreversible, and both want the modal's focus trap rather than a bubble that any stray click
-// dismisses.
-const RoomSettings = ({
+// Everything the admin can do to the room, in one panel. It was two — a settings dialog and a
+// people dialog — and two icons side by side asking to be told apart is a worse question than one
+// panel with headings in it. A dialog rather than a bubble: it holds a radio group, a list of
+// people and an irreversible action, all of which want a modal's focus rather than something a
+// stray click dismisses.
+const RoomMenu = ({
   deck,
   deckLocked,
   closing,
   onDeckChange,
   onCloseRoom,
-}: RoomSettingsProps): ReactElement => {
+  participants,
+  votedIds,
+  presentIds,
+  revealed,
+  adminId,
+  youId,
+  onMakeAdmin,
+  handingOverId,
+  onRemove,
+  removingId,
+}: RoomMenuProps): ReactElement => {
   const [open, setOpen] = useState(false);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const label = 'Room settings';
@@ -55,16 +80,32 @@ const RoomSettings = ({
       </Tooltip>
 
       <Dialog open={open} title={label} dismissible onClose={() => setOpen(false)}>
-        <DeckPicker value={deck} disabled={deckLocked} onChange={onDeckChange} />
+        <div className="room-menu">
+          <DeckPicker value={deck} disabled={deckLocked} onChange={onDeckChange} />
 
-        <div className="room-settings__danger">
-          <h3 className="room-settings__danger-title">Close this room</h3>
-          <p className="room-settings__danger-text">
-            Voting stops for everyone and cannot be resumed.
-          </p>
-          <Button variant="outlined" danger onClick={() => setConfirmingClose(true)}>
-            Close room
-          </Button>
+          <section>
+            <h3 className="room-menu__heading">People ({participants.length})</h3>
+            <ParticipantList
+              participants={participants}
+              votedIds={votedIds}
+              presentIds={presentIds}
+              revealed={revealed}
+              adminId={adminId}
+              youId={youId}
+              onMakeAdmin={onMakeAdmin}
+              handingOverId={handingOverId}
+              onRemove={onRemove}
+              removingId={removingId}
+            />
+          </section>
+
+          <section className="room-menu__danger">
+            <h3 className="room-menu__heading">Close this room</h3>
+            <p className="room-menu__text">Voting stops for everyone and cannot be resumed.</p>
+            <Button variant="outlined" danger onClick={() => setConfirmingClose(true)}>
+              Close room
+            </Button>
+          </section>
         </div>
       </Dialog>
 
@@ -102,4 +143,4 @@ const RoomSettings = ({
   );
 };
 
-export default RoomSettings;
+export default RoomMenu;

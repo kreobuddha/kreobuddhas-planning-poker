@@ -1,18 +1,24 @@
 import type { BadgeTone } from '@kreobuddha/ui';
 
 // Sessions store the deck *key*, not its values, so adjusting a scale here doesn't require
-// touching existing session documents.
+// touching existing session documents. The corollary is that a key must not be quietly re-pointed
+// at a different scale: `fibonacci` used to mean 1…21 and now means the half-point scale that was
+// called `modified`, so a room created before this change and still open reads its votes against
+// cards it was not played with. Sessions expire within hours, which is the only reason that was an
+// acceptable trade rather than a migration.
+//
+// Mirrored by hand in firebase/firestore.rules, which validates a vote against the session's deck
+// and cannot import this file. Both sides change together or votes start being denied.
 export const CARD_DECKS = {
-  fibonacci: { label: 'Fibonacci', values: [1, 2, 3, 5, 8, 13, 21] },
-  modified: { label: 'Modified Fibonacci', values: [0.5, 1, 2, 3, 5, 8, 13, 20] },
+  fibonacci: { label: 'Fibonacci', values: [0.5, 1, 2, 3, 5, 8, 13, 20] },
   powers: { label: 'Powers of two', values: [1, 2, 4, 8, 16, 32] },
 } as const;
 
 export type DeckKey = keyof typeof CARD_DECKS;
 
 // How far apart a round landed, said in cards rather than in numbers. The decks are not linear:
-// under Fibonacci, 13 and 21 are neighbours while 1 and 8 are four cards apart, so a numeric spread
-// of 8 means near-agreement at the top of the deck and a real argument at the bottom. Counting the
+// under Fibonacci, 13 and 20 are neighbours while 1 and 8 are four cards apart, so a numeric spread
+// of 7 means near-agreement at the top of the deck and a real argument at the bottom. Counting the
 // cards between the highest and the lowest vote asks the question the room actually cares about —
 // how many times somebody would have to change their mind.
 //
@@ -54,7 +60,7 @@ export const UNSURE_CARD = '?';
 
 export type CardValue = number | typeof UNSURE_CARD;
 
-export const DEFAULT_DECK: DeckKey = 'modified';
+export const DEFAULT_DECK: DeckKey = 'fibonacci';
 
 // A session's `deck` is a plain string in Firestore, so it can name a deck this build no longer
 // has — an older key, or a value written outside the app. Indexing CARD_DECKS with it directly

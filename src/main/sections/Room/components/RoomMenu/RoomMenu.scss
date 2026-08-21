@@ -1,0 +1,27 @@
+// Three things that have nothing to do with each other, so they are spaced apart and titled rather
+// than run together into one panel of controls.
+.room-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  // The participant list was written for a sidebar barely wider than a name, where every badge
+  // wrapped. Given a dialog's width it stops wrapping on its own; all that is left to say is where
+  // it starts.
+  min-width: min(24rem, 70vw);
+}
+
+.room-menu__heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.room-menu__text {
+  margin: 0 0 0.75rem;
+  color: var(--kreo-text-muted);
+  font-size: 0.9rem;
+}
+
+.room-menu__danger {
+  border-top: 1px solid var(--kreo-border-default);
+  padding-top: 1.25rem;
+}

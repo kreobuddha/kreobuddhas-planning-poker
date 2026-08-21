@@ -28,6 +28,42 @@ consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the 
 
 ### Changed
 
+- **The table fills the screen and the cards on it are big enough to read across one.** Seats were
+  sized for a sidebar list that no longer exists, and the label beneath each one was cut off after
+  nine characters — which is not a long name by any measure, and the truncation was measuring the
+  wrong thing anyway, clipping names that had room to spare.
+
+  A seat's card is now half again the size of a card in your own hand, and deliberately no longer
+  equal to it: the hand is at arm's length and read one card at a time, while the table is read all
+  at once from across the room. The table takes the width the room has rather than a fixed measure
+  in the middle of it, and sits centred in what the screen leaves below the bar. A name gets the
+  width of its seat and two lines before it is cut, and the `you` and `admin` badges have a line of
+  their own rather than wrapping or not depending on how long the name happened to be.
+
+  The sizes are tied to how much screen there is rather than fixed, so a 2K monitor gets the full
+  card and a laptop gets one scaled to fit — a table you have to scroll to see who has voted at is
+  not a table. Sixteen people fit on a 1300×800 screen with the question, the cards and your own
+  hand all in view at once, because both long edges of the table fill before either side is used:
+  a seat across the top or the bottom costs width, of which a room has plenty, while a seat down a
+  side costs height, which is what runs out.
+
+- **Every control the room has is in the app's own bar, and the room below it is only the room.**
+  0.6.0 began by moving the deck and the close button off the page into a dialog, and the result
+  was two bars stacked on each other: the application's, and the room's own beneath it with a
+  heading, a line of instructions and its own row of icons.
+
+  There is one bar now. The copy-link button, a single room menu and your own name sit in it beside
+  the theme toggle, and each screen draws the bar itself rather than the shell guessing from the
+  route what the screen wants in it. The room menu is one panel holding the three things an admin
+  can do — choose the deck, manage who is in the room, close it — where it used to be two icons
+  side by side asking to be told apart. Your name is a person icon, and the name itself is the
+  first thing inside the menu it opens, above "Change name" and "Leave room", where it is what the
+  menu is about rather than a label on the way to it.
+
+  The `Session ABC123` heading and the line under it are gone. The code is in the address bar, on
+  the copy button, and on the join screen of everyone you send it to; printing it above the table
+  spent the best line on the page on something nobody reads twice.
+
 - **The history of the meeting is behind an edge instead of under the table.** Every question the
   room has already answered used to sit in the page below the current one, which put the past
   between the reader and the deck they were about to play. It is now a panel at the right edge,
@@ -81,6 +117,23 @@ consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the 
   itself, and zero is the same distance a room in full agreement produces, so a table where nobody
   had agreed with anybody read as `Full consensus`. It now says `Only one voted`, in a neutral tone
   rather than a green one: this is not a weak agreement, it is the absence of one.
+
+- **The Extend button no longer sits against the end of the warning it belongs to.** The sentence
+  and the button were siblings in one run of text, so the button began where the last word ended.
+  The sentence is a paragraph now and the button has a line of its own.
+
+### Removed
+
+- **The 1 · 2 · 3 · 5 · 8 · 13 · 21 deck.** Two scales are a choice; three were a menu. What is
+  left is the half-point scale — 0.5 · 1 · 2 · 3 · 5 · 8 · 13 · 20 — which is now simply called
+  Fibonacci, and powers of two.
+
+  This is the one change in 0.6.0 that reaches the security rules, which validate a vote against
+  the deck its session names and cannot import the client's list. The `fibonacci` key now points
+  at the half-point scale instead of the one it used to name, so a room created before this release
+  and still open would read its votes against cards it was not played with — sessions expire within
+  hours, which is the only reason that was a trade rather than a migration. A room that stored the
+  retired `modified` key falls back to the default and keeps exactly the scale it had.
 
 ## [0.5.0] — 2026-08-20
 

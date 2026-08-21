@@ -8,14 +8,16 @@ service cloud.firestore {
 
     // Mirrors CARD_DECKS in src/config.ts — rules can't import it, so both sides must be
     // edited together when a deck is added, renamed, or rescaled.
+    //
+    // The fallback arm is the default deck, which is what a session document written before decks
+    // existed is read as, matching deckKeyOf() on the client.
     function deckValues(deck) {
-      return deck == 'fibonacci' ? [1, 2, 3, 5, 8, 13, 21]
-           : deck == 'powers' ? [1, 2, 4, 8, 16, 32]
+      return deck == 'powers' ? [1, 2, 4, 8, 16, 32]
            : [0.5, 1, 2, 3, 5, 8, 13, 20];
     }
 
     function isKnownDeck(deck) {
-      return deck in ['fibonacci', 'modified', 'powers'];
+      return deck in ['fibonacci', 'powers'];
     }
 
     match /sessions/{sessionId} {
@@ -179,7 +181,7 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(['value', 'createdAt'])
             && request.resource.data.createdAt is timestamp
             && (request.resource.data.value == '?'
-                || request.resource.data.value in deckValues(session().get('deck', 'modified')));
+                || request.resource.data.value in deckValues(session().get('deck', 'fibonacci')));
 
           // Your own vote, always. The admin's reach here is narrow and exists for one job: a
           // participant being removed takes their vote with them, or the revealed cards would

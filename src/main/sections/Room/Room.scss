@@ -1,7 +1,25 @@
+// What is left of the screen once the bar has taken its share, with the table sitting in the
+// middle of it. The room is one thing to look at rather than a page to read down, so it is
+// centred in the space rather than stacked from the top of it.
 .room {
   max-width: var(--app-shell-max);
   margin: 0 auto;
-  padding: 2.5rem 1.5rem;
+  // Padding and gap give way before anything else does. Both are already at their ceiling on a
+  // tall screen, so tightening them buys a short one its last thirty pixels without changing what
+  // a big monitor shows at all.
+  padding: clamp(0.75rem, 2vh, 1.5rem) 1.5rem;
+  min-height: calc(100dvh - var(--app-header-h));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.5rem, 1.2vh, 1rem);
+
+  // Below the breakpoint the table unrolls into a column taller than the screen, and centring
+  // something taller than its container pushes its top out of reach.
+  @media (max-width: 700px) {
+    justify-content: flex-start;
+    min-height: 0;
+  }
 }
 
 .room__table-actions {
@@ -21,7 +39,6 @@
 .room__hand {
   display: flex;
   justify-content: center;
-  margin-top: 2rem;
 }
 
 .room__loading,

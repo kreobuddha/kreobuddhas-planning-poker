@@ -7,12 +7,10 @@
     '.    top    .'
     'left table  right'
     '.    bottom .';
-  // Sized to the table rather than to the page: the room is allowed to be 1440px wide so a full
-  // table has somewhere to sit, but a grid that took all of it would park the side seats against
-  // the window frame, an arm's length from the surface they are supposed to be sitting at.
-  grid-template-columns: auto minmax(0, 44rem) auto;
-  justify-content: center;
-  gap: 1.25rem;
+  // The grid takes the room's full width and the surface takes what the side seats leave, so the
+  // table grows with the screen instead of sitting in the middle of it at a fixed size.
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: clamp(0.6rem, 1.5vh, 1.5rem);
   align-items: center;
   justify-items: center;
 }
@@ -22,7 +20,7 @@
   margin: 0;
   padding: 0;
   display: flex;
-  gap: 1rem;
+  gap: clamp(0.5rem, 1.2vh, 1rem);
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -53,19 +51,19 @@
 .poker-table__surface {
   grid-area: table;
   width: 100%;
-  min-height: 12rem;
+  min-height: clamp(8rem, 20vh, 18rem);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 2rem 1.5rem;
+  padding: clamp(1rem, 3vh, 2.5rem) 2rem;
   text-align: center;
   background: var(--kreo-surface-card);
   border: 1px solid var(--kreo-border-default);
   // Round rather than square: it is the one shape that says the people around it are a circle and
   // not a queue.
-  border-radius: 40% / 22%;
+  border-radius: 100px;
 }
 
 .poker-table__question {
@@ -79,8 +77,8 @@
 }
 
 .poker-table__pending {
-  width: 52px;
-  height: 72px;
+  width: var(--seat-card-w);
+  height: var(--seat-card-h);
 }
 
 // Below the breakpoint the sides have nowhere to go, so the ring unrolls: the table first, because
@@ -94,7 +92,6 @@
       'left'
       'bottom';
     grid-template-columns: minmax(0, 1fr);
-    justify-content: stretch;
   }
 
   .poker-table__seats--left,
