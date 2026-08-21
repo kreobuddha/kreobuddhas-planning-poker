@@ -2,6 +2,13 @@
 // `data-kreo-theme` attribute the theme toggle writes on <html>. The app deliberately keeps no
 // palette of its own, so the library stays the single source of truth for how everything looks.
 :root {
+  // How wide the application shell may grow. The header and the room read the same variable, so
+  // the room can never drift out of alignment with the bar above it. Not a `--kreo-*` name: the
+  // token layer belongs to the library, and this is the app's own page geometry.
+  //
+  // Home does not use it and should not — it is a form, and a form line 1440px long is unreadable.
+  --app-shell-max: 1440px;
+
   font-family: var(--kreo-font-sans);
   color-scheme: light;
   color: var(--kreo-text-primary);
