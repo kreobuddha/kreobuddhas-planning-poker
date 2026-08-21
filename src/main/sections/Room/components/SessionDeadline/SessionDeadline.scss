@@ -1,6 +1,5 @@
+// Nothing but spacing: the component renders only while the deadline is close, and the Alert it
+// renders brings its own tone, mark and colours.
 .session-deadline {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: flex-start;
+  margin-bottom: 1.75rem;
 }

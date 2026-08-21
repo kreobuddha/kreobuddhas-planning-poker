@@ -1,0 +1,21 @@
+// The bubble, its surface and its position come from @kreobuddha/ui's Toggletip. What is left
+// here is the shape of the list inside it: a stack of full-width actions rather than a paragraph.
+.user-menu__items {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  min-width: 10rem;
+}
+
+.user-menu__rename {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.user-menu__rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
