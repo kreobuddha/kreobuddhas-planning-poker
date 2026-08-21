@@ -144,6 +144,7 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         round={round}
         adminId={session.adminId}
         youId={userId}
+        deckValues={CARD_DECKS[deck].values}
         loading={participantsLoading}
       >
         {!round && !isAdmin && <p className="room__waiting">Waiting for the admin…</p>}

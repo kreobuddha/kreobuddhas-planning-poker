@@ -7,6 +7,25 @@ not when an API does, because there is no public API here.
 
 ## [Unreleased]
 
+### Added
+
+- **The table says how far apart the room is, counted in cards rather than in numbers.** A spread
+  of 13–20 and a spread of 1–8 are both seven person-days wide, and they mean opposite things: on
+  the Modified Fibonacci deck the first pair are neighbours and the second are five cards apart.
+  The decks are not linear, so the distance between two numbers is not the distance between two
+  opinions.
+
+  After a reveal the table now carries a reading beside the average and the spread — `Full
+consensus`, `Confident`, `Some disagreement` or `Needs discussion` — with the gap it is based on
+  written next to it, so the room can see both the verdict and the evidence for it. `?` takes no
+  part, exactly as it takes none in the average: it is a refusal to estimate, not an estimate.
+
+  One case is deliberately quiet. The deck belongs to the session rather than to the round, so
+  changing it re-labels rounds already played, and a card that is not on the current scale has no
+  position to measure from. Such a vote is left out of the reading — counted as a position it does
+  not have, it would report a disagreement nobody had. The card itself still shows on the seat that
+  played it.
+
 ### Changed
 
 - **The room is a table now, and the people in it are sitting around it.** Everything used to be
