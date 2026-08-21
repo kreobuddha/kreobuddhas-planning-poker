@@ -37,8 +37,10 @@ const SessionDeadline = ({
   return (
     <div className="session-deadline">
       <Alert tone="warning" title="This room is about to close" live>
-        Nobody will be able to vote in it after {minutesLeft(expiresAt)} min. Extending keeps it
-        open, and everything in it stays where it is.
+        <p className="session-deadline__text">
+          Nobody will be able to vote in it after {minutesLeft(expiresAt)} min. Extending keeps it
+          open, and everything in it stays where it is.
+        </p>
         <Button loading={extending} onClick={onExtend}>
           Extend
         </Button>
