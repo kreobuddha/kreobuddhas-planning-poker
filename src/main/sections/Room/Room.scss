@@ -1,5 +1,5 @@
 .room {
-  max-width: 960px;
+  max-width: var(--app-shell-max);
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
 }

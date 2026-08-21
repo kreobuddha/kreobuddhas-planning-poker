@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  max-width: 960px;
+  max-width: var(--app-shell-max);
   margin: 0 auto;
   padding: 1rem 1.5rem;
 }
