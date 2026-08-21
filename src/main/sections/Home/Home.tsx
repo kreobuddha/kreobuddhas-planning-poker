@@ -14,6 +14,7 @@ import {
 } from '@/main/endpoints/participantsApi';
 import { useLazyFindSessionByCodeQuery } from '@/main/endpoints/sessionsApi';
 import { errorMessage } from '@/store/queryError';
+import AppHeader from '@/components/AppHeader/AppHeader';
 
 interface HomeProps {
   userId: string;
@@ -84,68 +85,71 @@ const Home = ({ userId }: HomeProps): ReactElement => {
   };
 
   return (
-    <div className="home">
-      {/* The brand in the app header is a link, not a heading, so without this the page would
+    <>
+      <AppHeader />
+      <div className="home">
+        {/* The brand in the app header is a link, not a heading, so without this the page would
           have no level-one heading at all. Hidden rather than drawn: showing it would print the
           product name twice on the one screen where the header sits right above it. */}
-      <h1 className="visually-hidden">Planning Poker</h1>
-      <p className="home__subtitle">Estimate together, in person-days.</p>
+        <h1 className="visually-hidden">Planning Poker</h1>
+        <p className="home__subtitle">Estimate together, in person-days.</p>
 
-      <TextField
-        className="home__name-field"
-        label="Your name"
-        hint="Everyone in the room sees this."
-        value={name}
-        maxLength={NAME_MAX_LENGTH}
-        onChange={(e) => setName(e.target.value)}
-        fullWidth
-      />
+        <TextField
+          className="home__name-field"
+          label="Your name"
+          hint="Everyone in the room sees this."
+          value={name}
+          maxLength={NAME_MAX_LENGTH}
+          onChange={(e) => setName(e.target.value)}
+          fullWidth
+        />
 
-      <div className="home__actions">
-        <form onSubmit={handleCreate} className="home__card">
-          <h2>Start a session</h2>
-          <p>Create a new room and share the code with your team.</p>
-          {/* Disabled by the other action, not by its own: a second submit while the first is
+        <div className="home__actions">
+          <form onSubmit={handleCreate} className="home__card">
+            <h2>Start a session</h2>
+            <p>Create a new room and share the code with your team.</p>
+            {/* Disabled by the other action, not by its own: a second submit while the first is
               in flight would create a room nobody is sent to. */}
-          <Button type="submit" loading={creating} disabled={joining}>
-            Create session
-          </Button>
-        </form>
+            <Button type="submit" loading={creating} disabled={joining}>
+              Create session
+            </Button>
+          </form>
 
-        <form onSubmit={handleJoin} className="home__card">
-          <h2>Join a session</h2>
-          {/* The field corrects rather than validates: `normalizeSessionCode` upper-cases what
+          <form onSubmit={handleJoin} className="home__card">
+            <h2>Join a session</h2>
+            {/* The field corrects rather than validates: `normalizeSessionCode` upper-cases what
               was typed and drops what no code can contain, so a code copied out of a chat
               message with a trailing space or a stray quote still lands. `maxLength` bounds
               typing and the normaliser bounds pasting, which `maxLength` does not. */}
-          <TextField
-            label="Session code"
-            value={joinCode}
-            maxLength={SESSION_CODE_LENGTH}
-            autoComplete="off"
-            spellCheck={false}
-            inputMode="text"
-            onChange={(e) => setJoinCode(normalizeSessionCode(e.target.value))}
-            fullWidth
-          />
-          <Button type="submit" variant="outlined" loading={joining} disabled={creating}>
-            Join
-          </Button>
-        </form>
-      </div>
+            <TextField
+              label="Session code"
+              value={joinCode}
+              maxLength={SESSION_CODE_LENGTH}
+              autoComplete="off"
+              spellCheck={false}
+              inputMode="text"
+              onChange={(e) => setJoinCode(normalizeSessionCode(e.target.value))}
+              fullWidth
+            />
+            <Button type="submit" variant="outlined" loading={joining} disabled={creating}>
+              Join
+            </Button>
+          </form>
+        </div>
 
-      {error && (
-        <Alert
-          className="home__error"
-          tone="danger"
-          live
-          onDismiss={() => setError(null)}
-          dismissLabel="Dismiss this message"
-        >
-          {error}
-        </Alert>
-      )}
-    </div>
+        {error && (
+          <Alert
+            className="home__error"
+            tone="danger"
+            live
+            onDismiss={() => setError(null)}
+            dismissLabel="Dismiss this message"
+          >
+            {error}
+          </Alert>
+        )}
+      </div>
+    </>
   );
 };
 

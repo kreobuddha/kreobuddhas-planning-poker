@@ -1,0 +1,122 @@
+.participant-seat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  // Wider than the card it holds, so a name is not forced to be as narrow as a playing card. The
+  // card keeps its own size; this is only how much room the label beneath it may take.
+  max-width: calc(var(--seat-card-w) * 1.6);
+  // Dimmed rather than removed: the room still has to show who is expected back, and a table that
+  // dropped people would make a reveal look complete when it is not.
+  //
+  // Faded over a beat rather than switched: this is the one change in the room that happens with
+  // nobody touching anything, and a seat that blinks reads as a glitch rather than as somebody
+  // stepping away.
+  transition: opacity 200ms ease;
+}
+
+.participant-seat--away {
+  opacity: 0.55;
+}
+
+// The same size and shape as the cards in the reader's own hand, so what is on the table and what
+// they are about to play read as one deck.
+.participant-seat__card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Half again the size of the cards in the reader's own hand, and deliberately no longer equal to
+  // them. The hand is at arm's length and read one card at a time; these are read all at once,
+  // from across a table, and being the thing the room looks at they are the thing that should be
+  // big. Both sizes are set in index.scss and scale with the screen together.
+  width: var(--seat-card-w);
+  height: var(--seat-card-h);
+  border: 1px solid var(--kreo-border-default);
+  border-radius: var(--kreo-radius-md);
+  background: var(--kreo-surface-page);
+  transition: transform 120ms ease;
+}
+
+// Face down, and deliberately patterned rather than merely tinted: at a glance across a table of
+// twelve the difference between "played" and "still thinking" has to survive being small.
+.participant-seat__card--back {
+  border-color: var(--kreo-accent-500);
+  background:
+    repeating-linear-gradient(45deg, var(--kreo-surface-accent-soft) 0 5px, transparent 5px 10px),
+    var(--kreo-surface-page);
+  transform: translateY(-3px);
+}
+
+.participant-seat__card--empty {
+  border-style: dashed;
+  background: none;
+}
+
+.participant-seat__card--aside {
+  border-style: dashed;
+
+  .participant-seat__value {
+    color: var(--kreo-text-muted);
+  }
+}
+
+.participant-seat__value {
+  font-size: clamp(1.5rem, 3.2vh, 2.2rem);
+  font-weight: 700;
+  color: var(--kreo-accent-500);
+}
+
+.participant-seat__badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+// A name gets two lines before it is cut. Truncating at a fixed number of characters was measuring
+// the wrong thing — it clipped names that had room to spare — while letting it run unchecked would
+// let one 40-character name set the width of every seat at the table.
+.participant-seat__who {
+  font-size: clamp(0.8rem, 1.5vh, 1rem);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.participant-seat__note {
+  font-size: 0.7rem;
+  color: var(--kreo-text-muted);
+  text-align: center;
+}
+
+// The faces arrive all at once, when somebody else presses Reveal. Rising into place marks that as
+// an event rather than a repaint — and it is the only animation in the app that carries meaning,
+// so it is the only one with any distance to travel.
+.participant-seat__card--face {
+  animation: participant-seat-reveal 220ms ease-out;
+}
+
+@keyframes participant-seat-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .participant-seat,
+  .participant-seat__card {
+    transition: none;
+  }
+
+  .participant-seat__card--face {
+    animation: none;
+  }
+}

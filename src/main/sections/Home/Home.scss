@@ -1,3 +1,6 @@
+// Deliberately not `--app-shell-max`: the header and the room share that width because they are
+// a workspace, and this page is a heading, a name field and two cards. Widening it would only
+// stretch a line of prose across the screen.
 .home {
   max-width: 640px;
   margin: 0 auto;

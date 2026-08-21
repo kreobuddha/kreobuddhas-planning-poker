@@ -1,15 +1,13 @@
 import './SessionDeadline.scss';
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import { Alert, Button, Dialog } from '@kreobuddha/ui';
+import { Alert, Button } from '@kreobuddha/ui';
 import { SESSION_EXPIRY_WARNING_MS } from '@/config';
 
 interface SessionDeadlineProps {
   expiresAt: number;
   extending: boolean;
-  closing: boolean;
   onExtend: () => void;
-  onClose: () => void;
 }
 
 const minutesLeft = (expiresAt: number): number =>
@@ -17,15 +15,16 @@ const minutesLeft = (expiresAt: number): number =>
 
 // The one place in the app whose display has to move without a snapshot arriving: a deadline
 // passes on its own, and nothing is written when it does.
+//
+// Closing the room used to live here too and now sits in the settings dialog. The warning cannot
+// follow it: it is the room saying it is about to stop, and a warning nobody can see until they
+// open a dialog is not a warning.
 const SessionDeadline = ({
   expiresAt,
   extending,
-  closing,
   onExtend,
-  onClose,
-}: SessionDeadlineProps): ReactElement => {
+}: SessionDeadlineProps): ReactElement | null => {
   const [remaining, setRemaining] = useState(() => expiresAt - Date.now());
-  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     setRemaining(expiresAt - Date.now());
@@ -33,50 +32,19 @@ const SessionDeadline = ({
     return () => clearInterval(timer);
   }, [expiresAt]);
 
-  const warning = remaining <= SESSION_EXPIRY_WARNING_MS;
+  if (remaining > SESSION_EXPIRY_WARNING_MS) return null;
 
   return (
     <div className="session-deadline">
-      {warning && (
-        <Alert tone="warning" title="This room is about to close" live>
+      <Alert tone="warning" title="This room is about to close" live>
+        <p className="session-deadline__text">
           Nobody will be able to vote in it after {minutesLeft(expiresAt)} min. Extending keeps it
           open, and everything in it stays where it is.
-          <Button loading={extending} onClick={onExtend}>
-            Extend
-          </Button>
-        </Alert>
-      )}
-
-      <Button variant="ghost" danger onClick={() => setConfirming(true)}>
-        Close room
-      </Button>
-
-      <Dialog
-        open={confirming}
-        title="Close this room?"
-        dismissible
-        onClose={() => setConfirming(false)}
-        footer={
-          <>
-            <Button variant="outlined" onClick={() => setConfirming(false)}>
-              Keep it open
-            </Button>
-            <Button
-              danger
-              loading={closing}
-              onClick={() => {
-                setConfirming(false);
-                onClose();
-              }}
-            >
-              Close room
-            </Button>
-          </>
-        }
-      >
-        Voting stops immediately and cannot be resumed — a closed room is an expired one. Everyone
-        in the room, you included, is taken back to the home page.
-      </Dialog>
+        </p>
+        <Button loading={extending} onClick={onExtend}>
+          Extend
+        </Button>
+      </Alert>
     </div>
   );
 };

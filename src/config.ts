@@ -1,12 +1,57 @@
+import type { BadgeTone } from '@kreobuddha/ui';
+
 // Sessions store the deck *key*, not its values, so adjusting a scale here doesn't require
-// touching existing session documents.
+// touching existing session documents. The corollary is that a key must not be quietly re-pointed
+// at a different scale: `fibonacci` used to mean 1…21 and now means the half-point scale that was
+// called `modified`, so a room created before this change and still open reads its votes against
+// cards it was not played with. Sessions expire within hours, which is the only reason that was an
+// acceptable trade rather than a migration.
+//
+// Mirrored by hand in firebase/firestore.rules, which validates a vote against the session's deck
+// and cannot import this file. Both sides change together or votes start being denied.
 export const CARD_DECKS = {
-  fibonacci: { label: 'Fibonacci', values: [1, 2, 3, 5, 8, 13, 21] },
-  modified: { label: 'Modified Fibonacci', values: [0.5, 1, 2, 3, 5, 8, 13, 20] },
+  fibonacci: { label: 'Fibonacci', values: [0.5, 1, 2, 3, 5, 8, 13, 20] },
   powers: { label: 'Powers of two', values: [1, 2, 4, 8, 16, 32] },
 } as const;
 
 export type DeckKey = keyof typeof CARD_DECKS;
+
+// How far apart a round landed, said in cards rather than in numbers. The decks are not linear:
+// under Fibonacci, 13 and 20 are neighbours while 1 and 8 are four cards apart, so a numeric spread
+// of 7 means near-agreement at the top of the deck and a real argument at the bottom. Counting the
+// cards between the highest and the lowest vote asks the question the room actually cares about —
+// how many times somebody would have to change their mind.
+//
+// Thresholds and wording live here beside the decks they are measured against. Nothing in
+// firebase/firestore.rules mirrors them: this is a reading of the votes, not a constraint on them.
+export const CONFIDENCE_LEVELS = [
+  { upToSteps: 0, label: 'Full consensus', tone: 'success' },
+  { upToSteps: 1, label: 'Confident', tone: 'success' },
+  { upToSteps: 2, label: 'Some disagreement', tone: 'warning' },
+] as const satisfies readonly ConfidenceThreshold[];
+
+// Anything further apart than the last threshold above.
+export const CONFIDENCE_BEYOND: ConfidenceLevel = {
+  label: 'Needs discussion',
+  tone: 'danger',
+};
+
+// One estimate is not agreement. The gap is zero because there is only one card on the table, and
+// calling that "full consensus" would report a room that never happened.
+export const CONFIDENCE_ALONE: ConfidenceLevel = {
+  label: 'Only one voted',
+  tone: 'neutral',
+};
+
+export interface ConfidenceLevel {
+  label: string;
+  tone: BadgeTone;
+}
+
+interface ConfidenceThreshold extends ConfidenceLevel {
+  /** The widest gap, in cards, this level still describes. */
+  upToSteps: number;
+}
 
 // Deliberately not a member of any deck's `values`: "?" is not an estimate but a refusal to
 // give one, so it is drawn after the deck and left out of the statistics. Mirrored in
@@ -15,7 +60,7 @@ export const UNSURE_CARD = '?';
 
 export type CardValue = number | typeof UNSURE_CARD;
 
-export const DEFAULT_DECK: DeckKey = 'modified';
+export const DEFAULT_DECK: DeckKey = 'fibonacci';
 
 // A session's `deck` is a plain string in Firestore, so it can name a deck this build no longer
 // has — an older key, or a value written outside the app. Indexing CARD_DECKS with it directly
@@ -56,10 +101,11 @@ export const PRESENCE_HEARTBEAT_MS = 20 * 1000;
 export const PRESENCE_TIMEOUT_MS = 3 * PRESENCE_HEARTBEAT_MS;
 
 // How many past questions the history draws before it asks to be asked for more. The number is
-// not cosmetic: `Accordion` is a `<details>`, so its content is mounted whether or not it is
-// open, and every row mounted reads that round's whole votes collection. A room with fifty
-// questions behind it therefore costs fifty collection reads per person per visit, none of which
-// anybody asked to see. Ten is what fits on a screen; the rest arrive when they are wanted.
+// not cosmetic: every row mounted reads that round's whole votes collection, so a room with fifty
+// questions behind it would cost fifty collection reads the moment the drawer opened. The drawer
+// mounts nothing while it is closed, which is what keeps that cost off everyone who never opens
+// it; paging is what keeps it from landing all at once on everyone who does. Ten is what fits on
+// a screen; the rest arrive when they are wanted.
 export const ROUND_HISTORY_PAGE_SIZE = 10;
 
 // A join code is exactly this long — `generateSessionCode` draws it and the field on Home accepts

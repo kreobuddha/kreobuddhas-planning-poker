@@ -18,7 +18,6 @@ const AskQuestionForm = ({
 }: AskQuestionFormProps): ReactElement => {
   return (
     <form onSubmit={onSubmit} className="ask-question-form">
-      <h2>Ask a question</h2>
       <TextField
         label="What are we estimating?"
         value={question}
