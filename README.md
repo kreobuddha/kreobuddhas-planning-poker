@@ -5,10 +5,40 @@ room link, and vote on how long a task will take — in person-days — together
 
 - An admin creates a session, picks a card deck, and asks a question ("How long will X take?").
 - Teammates join with a code and pick a card; picking the same card again clears the vote.
-- Votes stay hidden until the admin reveals them, then everyone sees all cards and the average.
+- Votes stay hidden until the admin reveals them, then every card turns over at once, on the seat
+  that played it, next to the average, the spread and how far apart the room actually is.
 
 **Try it:** <https://kreobuddha-planning-poker-demo.web.app> — a public demo on its own Firebase
 project. Anyone can open a room there; nothing in it is private.
+
+## The room
+
+The room is a table. Everyone in it has a seat with one card in it, and the card is the whole
+statement: face down once that person has played, an empty slot while they have not, dimmed when
+their tab has stopped reporting in. You sit at the near edge with your own deck below you; everyone
+else takes the far edge in the order they joined, and spills onto the sides only once both long
+edges are full — a seat along an edge costs width, of which a screen has plenty, while a seat down
+a side costs height, which is what runs out. Sixteen people fit on a 1300×800 screen with the
+question, the cards and your hand all in view.
+
+The card sizes follow the screen rather than being fixed, because a table you have to scroll to see
+who has voted at is not a table.
+
+On the table itself: the question, a count of who has voted while the round is open, and the
+reading of the result once it is not. Around it, nothing — every control lives in the bar at the
+top of the page:
+
+| Control        | Who sees it        | What it holds                                                                              |
+| -------------- | ------------------ | ------------------------------------------------------------------------------------------ |
+| Copy room link | everyone in a room | the address of the room, for pasting into chat                                             |
+| Room settings  | the admin          | the deck, the people in the room with the admin's controls over them, and closing the room |
+| Your name      | everyone in a room | your name, changing it, and leaving                                                        |
+| Theme          | everyone           | light or dark                                                                              |
+
+Past questions are behind a panel at the right edge, closed until it is asked for. It mounts
+nothing while it is closed, and that is the reason for building it that way rather than a bonus:
+every row in it reads its own round's votes, so a room with fifty questions behind it would charge
+fifty reads to everyone who walked in, including everyone who never looked.
 
 ## Stack
 
@@ -175,7 +205,18 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
   the table with every vote already cast still in place.
 - Picking the card you already selected clears your vote and puts you back to _waiting_. "?" is a
   vote like any other in that respect — it is cast and cleared the same way — but it is left out
-  of the average and the spread, and its author is named in the results as not counted.
+  of the average, the spread and the agreement reading, and the seat that played it says so.
+- A reveal reports how far apart the room is, and counts it in cards rather than in numbers. The
+  decks are not linear: on the Fibonacci deck 13 and 20 are neighbours while 1 and 8 are four cards
+  apart, so "seven person-days apart" describes near-agreement at one end of the deck and a real
+  argument at the other. The gap between the highest and the lowest card is what the label is based
+  on, and the gap is shown beside it, because a verdict without its evidence has to be taken on
+  trust. Somebody who was the only one to give a number is told exactly that rather than being
+  called a consensus.
+- A card that is not on the session's current deck takes no part in that reading. The deck belongs
+  to the session rather than to the round, so changing it re-labels rounds already played, and a
+  card with no position on the new scale has no distance to anything. It still shows on the seat
+  that played it.
 - A room has a deadline. Writes stop once it passes; the rules still allow reads, but the app
   no longer shows a room it cannot write to — everyone in it is taken back to the home page and
   told the room has closed. The admin is warned beforehand and can push the deadline back while
@@ -203,8 +244,10 @@ workflow reads it. To let Claude Code start and drive the dev server itself, cre
   set before the first paint by a small script in `index.html` rather than by the app, so nobody
   sees a frame of the wrong one — which is why the storage key is deliberately written twice,
   there and in `src/lib/theme.ts`, with a comment on both sides.
-- Past rounds stay beside the room with the average they were estimated at, so a session reads as
-  a record of the meeting rather than one live question.
+- Past rounds stay with the room, each with the average it was estimated at, so a session reads as
+  a record of the meeting rather than one live question. They sit in a panel at the edge rather
+  than in the page, because the past should not stand between you and the deck you are about to
+  play from.
 - All state (participants joining, votes being cast, reveals) syncs live via Firestore
   `onSnapshot` listeners on the `participants`, `rounds`, and `votes` collections.
 
@@ -243,8 +286,8 @@ whether the project it points at has a TTL policy at all. Check it in the consol
 ```
 src/
   auth/         userSlice (uid/loading/error), useCheckAuth, store/authApi
-  components/   AppHeader, ThemeToggle, VoteCards, ParticipantList, Results, DeckPicker,
-                CopyLinkButton
+  components/   AppHeader (the bar every screen draws and fills), ThemeToggle, VoteCards,
+                ParticipantList, DeckPicker, CopyLinkButton
   hooks/        useTheme (light/dark, remembered) — hooks shared across the app; a hook only
                 one section uses sits beside that section instead
   lib/          Firebase client, session code generator, Timestamp conversion, theme storage
@@ -252,11 +295,14 @@ src/
     endpoints/  cross-section: sessionsApi (look a session up by code),
                 participantsApi (read, create and rename your own participant row)
     sections/   Home (create/join), Room (voting + reveal), each with its own endpoints/;
-                Room also has components/ and its own hooks — usePresence, useRoomData
-                (subscriptions and what follows from them), useRoomActions (mutations and
-                handlers)
+                Room also has components/ — PokerTable and ParticipantSeat, RoomMenu, UserMenu,
+                RoundStats, the ask-question form and its dialog, the history drawer — and its
+                own hooks: usePresence, useRoomData (subscriptions and what follows from them),
+                useRoomActions (mutations and handlers). confidence.ts turns a round's votes
+                into the distance-in-cards reading
   store/        configureStore, emptyApi, firebaseBaseQuery, firestoreStream
-  config.ts     Card decks
+  config.ts     Card decks, the agreement thresholds, and every constant the client shares
+                with the security rules
   types.ts      ISession, IParticipant, IRound, IVote
 firebase/
   firestore.rules            Security rules
