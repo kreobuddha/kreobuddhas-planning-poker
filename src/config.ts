@@ -22,20 +22,29 @@ export const CONFIDENCE_LEVELS = [
   { upToSteps: 0, label: 'Full consensus', tone: 'success' },
   { upToSteps: 1, label: 'Confident', tone: 'success' },
   { upToSteps: 2, label: 'Some disagreement', tone: 'warning' },
-] as const satisfies readonly ConfidenceLevel[];
+] as const satisfies readonly ConfidenceThreshold[];
 
 // Anything further apart than the last threshold above.
 export const CONFIDENCE_BEYOND: ConfidenceLevel = {
-  upToSteps: Number.POSITIVE_INFINITY,
   label: 'Needs discussion',
   tone: 'danger',
 };
 
+// One estimate is not agreement. The gap is zero because there is only one card on the table, and
+// calling that "full consensus" would report a room that never happened.
+export const CONFIDENCE_ALONE: ConfidenceLevel = {
+  label: 'Only one voted',
+  tone: 'neutral',
+};
+
 export interface ConfidenceLevel {
-  /** The widest gap, in cards, this level still describes. */
-  upToSteps: number;
   label: string;
   tone: BadgeTone;
+}
+
+interface ConfidenceThreshold extends ConfidenceLevel {
+  /** The widest gap, in cards, this level still describes. */
+  upToSteps: number;
 }
 
 // Deliberately not a member of any deck's `values`: "?" is not an estimate but a refusal to
