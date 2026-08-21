@@ -1,15 +1,18 @@
 import './Room.scss';
 import type { ReactElement } from 'react';
-import { Alert, Spinner } from '@kreobuddha/ui';
+import { Alert, Button, Spinner } from '@kreobuddha/ui';
 import { CARD_DECKS } from '@/config';
 import { errorMessage } from '@/store/queryError';
+import VoteCards from '@/components/VoteCards/VoteCards';
 import RoomHeader from '@/main/sections/Room/components/RoomHeader/RoomHeader';
 import RoomSettings from '@/main/sections/Room/components/RoomSettings/RoomSettings';
+import RoomPeople from '@/main/sections/Room/components/RoomPeople/RoomPeople';
 import UserMenu from '@/main/sections/Room/components/UserMenu/UserMenu';
-import RoomSidebar from '@/main/sections/Room/components/RoomSidebar/RoomSidebar';
 import JoinForm from '@/main/sections/Room/components/JoinForm/JoinForm';
 import AskQuestionForm from '@/main/sections/Room/components/AskQuestionForm/AskQuestionForm';
-import RoundPanel from '@/main/sections/Room/components/RoundPanel/RoundPanel';
+import AskQuestionDialog from '@/main/sections/Room/components/AskQuestionDialog/AskQuestionDialog';
+import PokerTable from '@/main/sections/Room/components/PokerTable/PokerTable';
+import RoundHistory from '@/main/sections/Room/components/RoundHistory/RoundHistory';
 import SessionDeadline from '@/main/sections/Room/components/SessionDeadline/SessionDeadline';
 import { useRoomActions } from '@/main/sections/Room/useRoomActions';
 import { useRoomData } from '@/main/sections/Room/useRoomData';
@@ -60,9 +63,9 @@ const Room = ({ userId }: RoomProps): ReactElement => {
   }
 
   // Three distinct states, and they must stay distinct: while the list is still arriving the room
-  // renders with a placeholder sidebar, an unreadable list says so, and only a list that loaded
-  // and does not hold the reader means "you are not in this room yet". Offering the join form on
-  // an unreadable list would invite people to join a room they are already in.
+  // renders with placeholder seats, an unreadable list says so, and only a list that loaded and
+  // does not hold the reader means "you are not in this room yet". Offering the join form on an
+  // unreadable list would invite people to join a room they are already in.
   if (participantsUnreadable) {
     return (
       <div className="room__error">
@@ -97,6 +100,20 @@ const Room = ({ userId }: RoomProps): ReactElement => {
             onCloseRoom={actions.handleCloseRoom}
           />
         )}
+        {isAdmin && (
+          <RoomPeople
+            participants={participants}
+            votedIds={votedIds}
+            presentIds={presentIds}
+            revealed={round?.revealed ?? false}
+            adminId={session.adminId}
+            youId={userId}
+            onMakeAdmin={actions.handleMakeAdmin}
+            handingOverId={actions.handingOverId}
+            onRemove={votingOpen ? actions.handleRemove : undefined}
+            removingId={actions.removingId}
+          />
+        )}
         {me && (
           <UserMenu
             name={me.name}
@@ -112,62 +129,77 @@ const Room = ({ userId }: RoomProps): ReactElement => {
         )}
       </RoomHeader>
 
-      <div className="room__body">
-        <RoomSidebar
-          participants={participants}
-          votedIds={votedIds}
-          presentIds={presentIds}
-          revealed={round?.revealed ?? false}
-          adminId={session.adminId}
-          loading={participantsLoading}
-          youId={userId}
-          onMakeAdmin={isAdmin ? actions.handleMakeAdmin : undefined}
-          handingOverId={actions.handingOverId}
-          onRemove={isAdmin && votingOpen ? actions.handleRemove : undefined}
-          removingId={actions.removingId}
-          sessionId={session.id}
-          pastRounds={rounds.slice(1)}
+      {isAdmin && session.expiresAt !== undefined && (
+        <SessionDeadline
+          expiresAt={session.expiresAt}
+          extending={actions.extending}
+          onExtend={actions.handleExtend}
         />
+      )}
 
-        <main className="room__main">
-          {isAdmin && session.expiresAt !== undefined && (
-            <SessionDeadline
-              expiresAt={session.expiresAt}
-              extending={actions.extending}
-              onExtend={actions.handleExtend}
-            />
-          )}
+      <PokerTable
+        participants={participants}
+        votes={votes}
+        presentIds={presentIds}
+        round={round}
+        adminId={session.adminId}
+        youId={userId}
+        loading={participantsLoading}
+      >
+        {!round && !isAdmin && <p className="room__waiting">Waiting for the admin…</p>}
+        {!round && isAdmin && (
+          <AskQuestionForm
+            question={actions.question}
+            busy={actions.asking}
+            onQuestionChange={actions.setQuestion}
+            onSubmit={actions.handleAskQuestion}
+          />
+        )}
 
-          {isAdmin && (!round || round.revealed) && (
-            <AskQuestionForm
-              question={actions.question}
-              busy={actions.asking}
-              onQuestionChange={actions.setQuestion}
-              onSubmit={actions.handleAskQuestion}
-            />
-          )}
+        {/* One row of admin controls at the table's edge, rather than a control wherever the thing
+            it acts on happens to be drawn. */}
+        {round && isAdmin && (
+          <div className="room__table-actions">
+            {round.revealed ? (
+              <>
+                <Button
+                  variant="outlined"
+                  loading={actions.reopening}
+                  onClick={actions.handleReopen}
+                >
+                  Reopen round
+                </Button>
+                <AskQuestionDialog
+                  question={actions.question}
+                  busy={actions.asking}
+                  onQuestionChange={actions.setQuestion}
+                  onSubmit={actions.handleAskQuestion}
+                />
+              </>
+            ) : (
+              <Button loading={actions.revealing} onClick={actions.handleReveal}>
+                Reveal cards
+              </Button>
+            )}
+          </div>
+        )}
+      </PokerTable>
 
-          {round && (
-            <RoundPanel
-              round={round}
-              deckValues={CARD_DECKS[deck].values}
-              votes={votes}
-              participants={participants}
-              presentIds={presentIds}
-              myVote={myVote?.value ?? null}
-              isAdmin={isAdmin}
-              voting={actions.voting}
-              revealing={actions.revealing}
-              reopening={actions.reopening}
-              onSelect={actions.handleVote}
-              onReveal={actions.handleReveal}
-              onReopen={actions.handleReopen}
-            />
-          )}
+      {/* The reader's hand: their own deck, below the table and outside it, because it is the one
+          thing on this screen nobody else can touch. */}
+      {round && !round.revealed && (
+        <div className="room__hand">
+          <VoteCards
+            values={CARD_DECKS[deck].values}
+            selected={myVote?.value ?? null}
+            disabled={actions.voting}
+            onSelect={actions.handleVote}
+            label={`Your estimate for: ${round.question}`}
+          />
+        </div>
+      )}
 
-          {!round && !isAdmin && <p>Waiting for the admin to ask a question…</p>}
-        </main>
-      </div>
+      <RoundHistory sessionId={session.id} rounds={rounds.slice(1)} />
     </div>
   );
 };

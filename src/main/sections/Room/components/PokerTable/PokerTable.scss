@@ -1,0 +1,108 @@
+// Named grid areas rather than trigonometry around a circle: at three people and at twelve the
+// result is predictable, and the narrow layout is one redefinition of the same areas rather than a
+// second set of coordinates.
+.poker-table {
+  display: grid;
+  grid-template-areas:
+    '.    top    .'
+    'left table  right'
+    '.    bottom .';
+  // Sized to the table rather than to the page: the room is allowed to be 1440px wide so a full
+  // table has somewhere to sit, but a grid that took all of it would park the side seats against
+  // the window frame, an arm's length from the surface they are supposed to be sitting at.
+  grid-template-columns: auto minmax(0, 44rem) auto;
+  justify-content: center;
+  gap: 1.25rem;
+  align-items: center;
+  justify-items: center;
+}
+
+.poker-table__seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+// A side with nobody on it must not hold a column open, or a table of four would sit off-centre.
+.poker-table__seats:empty {
+  display: none;
+}
+
+.poker-table__seats--top {
+  grid-area: top;
+}
+
+.poker-table__seats--bottom {
+  grid-area: bottom;
+}
+
+.poker-table__seats--left {
+  grid-area: left;
+  flex-direction: column;
+}
+
+.poker-table__seats--right {
+  grid-area: right;
+  flex-direction: column;
+}
+
+.poker-table__surface {
+  grid-area: table;
+  width: 100%;
+  min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background: var(--kreo-surface-card);
+  border: 1px solid var(--kreo-border-default);
+  // Round rather than square: it is the one shape that says the people around it are a circle and
+  // not a queue.
+  border-radius: 40% / 22%;
+}
+
+.poker-table__question {
+  margin: 0;
+}
+
+.poker-table__progress {
+  margin: 0;
+  color: var(--kreo-text-muted);
+  font-size: 0.9rem;
+}
+
+.poker-table__pending {
+  width: 52px;
+  height: 72px;
+}
+
+// Below the breakpoint the sides have nowhere to go, so the ring unrolls: the table first, because
+// it holds the question, then everyone around it as rows of cards.
+@media (max-width: 700px) {
+  .poker-table {
+    grid-template-areas:
+      'table'
+      'top'
+      'right'
+      'left'
+      'bottom';
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+  }
+
+  .poker-table__seats--left,
+  .poker-table__seats--right {
+    flex-direction: row;
+  }
+
+  .poker-table__surface {
+    border-radius: var(--kreo-radius-lg);
+  }
+}

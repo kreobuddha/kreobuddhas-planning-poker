@@ -1,0 +1,5 @@
+// The list was written for a sidebar barely wider than a name, where every badge wrapped. Given a
+// dialog's width it stops wrapping on its own; all that is left to say is where it starts.
+.room-people__list {
+  min-width: min(22rem, 70vw);
+}

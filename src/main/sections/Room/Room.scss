@@ -4,22 +4,24 @@
   padding: 2.5rem 1.5rem;
 }
 
-.room__body {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 2rem;
-  align-items: start;
-
-  @media (max-width: 700px) {
-    grid-template-columns: 1fr;
-  }
+.room__table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-.room__main {
-  background: var(--kreo-surface-card);
-  border: 1px solid var(--kreo-border-default);
-  border-radius: var(--kreo-radius-lg);
-  padding: 1.75rem;
+.room__waiting {
+  margin: 0;
+  color: var(--kreo-text-muted);
+}
+
+// Centred under the table rather than left-aligned with the page: the hand belongs to the seat at
+// the near edge, and that seat is in the middle.
+.room__hand {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
 }
 
 .room__loading,
